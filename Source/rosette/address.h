@@ -23,8 +23,8 @@
 #include <cstddef>
 
 namespace rosette {
-using NoteIndex = std::size_t;
-using Index = std::size_t;
+using NoteIndex = int;
+using Index = int;
 struct ColAddress {
     Scope type{Scope::NOTE};
     ChannelIndex channelIndex{};

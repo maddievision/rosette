@@ -30,6 +30,11 @@ enum class EventType {
     Effect
 };
 
+enum class EffectType {
+    Volume,
+    Pan
+};
+
 struct ShadowData {
     rat length{};
     float volAmt{1.0f};
@@ -43,11 +48,28 @@ struct SheetEvent {
     int instrument{};
     
     // Effect
-    std::string prefix{};
-    int parameter{};
+    EffectType effectType{};
+    int param1{};
+    int param2{};
     
     // TODO(ruby): Doomed to repeat the same mistakes…
     ShadowData shadowData{};
+    
+    inline bool isOff() const {
+        return type == EventType::Off;
+    }
+    
+    inline bool isEffect() const {
+        return type == EventType::Effect;
+    }
+
+    inline bool isEffectOfType(EffectType effType) const {
+        return isEffect() && effectType == effType;
+    }
+
+    inline bool isNote() const {
+        return type == EventType::Note;
+    }
 
     static SheetEvent off() {
         return SheetEvent{.type = EventType::Off};
@@ -57,8 +79,8 @@ struct SheetEvent {
         return SheetEvent{.type = EventType::Note, .noteNumber = number, .instrument = instrument};
     }
     
-    static SheetEvent effect(const std::string& prefix, int parameter) {
-        return SheetEvent{.type = EventType::Effect, .prefix = prefix, .parameter = parameter};
+    static SheetEvent effect(EffectType type, int param1, int param2 = 0) {
+        return SheetEvent{.type = EventType::Effect, .effectType = type, .param1 = param1, .param2 = param2};
     }
 };
 }

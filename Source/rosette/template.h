@@ -23,6 +23,15 @@ struct point {
     C col;
     R row;
     
+    point<C, R> offsetCol(const C &bCol) {
+        return point{.col = col + bCol, .row = row};
+    }
+    
+    point<C, R> offsetRow(const R &bRow) {
+        return point{.col = col, .row = row + bRow};
+    }
+
+    
     bool operator==(const point<C, R>& b) const { return col == b.col && row == b.row; }
     
     bool operator<(const point<C, R>& b) const {
@@ -36,6 +45,10 @@ struct point {
     bool operator>=(const point<C, R>& b) const { return *this == b || *this > b; }
     
     bool operator<=(const point<C, R>& b) const { return *this == b || *this < b; }
+    
+    friend point<C, R> operator-(const point<C, R>& a, const C& b) {
+        return point{.col = a.col - b, .row = a.row};
+    }
     
     friend point<C, R> operator+(const point<C, R>& a, const point<C, R>& b) {
         return point{.col = a.col + b.col, .row = a.row + b.row};

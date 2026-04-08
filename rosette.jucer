@@ -9,31 +9,36 @@
               cppLanguageStandard="20" pluginFormats="buildAU,buildVST3">
   <MAINGROUP id="qwc5rm" name="rosette">
     <GROUP id="{C1B3CF8D-8226-3D40-FE2B-D8AE74CCAAD0}" name="Source">
-      <FILE id="fDk7TD" name="common.cpp" compile="1" resource="0" file="Source/common.cpp"/>
-      <FILE id="xAxbxm" name="common.h" compile="0" resource="0" file="Source/common.h"/>
-      <FILE id="zlIk4c" name="playback.cpp" compile="1" resource="0" file="Source/playback.cpp"/>
-      <FILE id="ma2uFn" name="playback.h" compile="0" resource="0" file="Source/playback.h"/>
-      <FILE id="gmpmhD" name="ui.cpp" compile="1" resource="0" file="Source/ui.cpp"/>
-      <FILE id="U7zMBU" name="channel.cpp" compile="1" resource="0" file="Source/channel.cpp"/>
-      <FILE id="WVwD3K" name="channel.h" compile="0" resource="0" file="Source/channel.h"/>
-      <FILE id="z4P8EW" name="template.h" compile="0" resource="0" file="Source/template.h"/>
-      <FILE id="nyTPBc" name="drawing.cpp" compile="1" resource="0" file="Source/drawing.cpp"/>
-      <FILE id="PYLMmc" name="drawing.h" compile="0" resource="0" file="Source/drawing.h"/>
-      <FILE id="vlANAj" name="event.cpp" compile="1" resource="0" file="Source/event.cpp"/>
-      <FILE id="nXCrnx" name="event.h" compile="0" resource="0" file="Source/event.h"/>
-      <FILE id="IzmVwG" name="column.cpp" compile="1" resource="0" file="Source/column.cpp"/>
-      <FILE id="si3nIq" name="column.h" compile="0" resource="0" file="Source/column.h"/>
-      <FILE id="xqpV92" name="enum.h" compile="0" resource="0" file="Source/enum.h"/>
-      <FILE id="Zy8mU4" name="address.cpp" compile="1" resource="0" file="Source/address.cpp"/>
-      <FILE id="rm7jC8" name="address.h" compile="0" resource="0" file="Source/address.h"/>
-      <FILE id="jGsfbr" name="rational.cpp" compile="1" resource="0" file="Source/rational.cpp"/>
-      <FILE id="YErN5i" name="rational.h" compile="0" resource="0" file="Source/rational.h"/>
-      <FILE id="RoqD9x" name="sheet.cpp" compile="1" resource="0" file="Source/sheet.cpp"/>
-      <FILE id="ZSsXP5" name="sheet.h" compile="0" resource="0" file="Source/sheet.h"/>
-      <FILE id="MoSqZS" name="presentation.cpp" compile="1" resource="0"
-            file="Source/presentation.cpp"/>
-      <FILE id="Mo0QCz" name="presentation.h" compile="0" resource="0" file="Source/presentation.h"/>
-      <FILE id="GabSil" name="ui.h" compile="0" resource="0" file="Source/ui.h"/>
+      <GROUP id="{E2678F1B-197C-CCEC-7AFD-993D1DF138C5}" name="rosette">
+        <FILE id="DzaWQ0" name="savedata.cpp" compile="1" resource="0" file="Source/rosette/savedata.cpp"/>
+        <FILE id="mhiI1b" name="address.cpp" compile="1" resource="0" file="Source/rosette/address.cpp"/>
+        <FILE id="eE6uxC" name="address.h" compile="0" resource="0" file="Source/rosette/address.h"/>
+        <FILE id="nn2vvO" name="channel.cpp" compile="1" resource="0" file="Source/rosette/channel.cpp"/>
+        <FILE id="pOSA1e" name="channel.h" compile="0" resource="0" file="Source/rosette/channel.h"/>
+        <FILE id="CKbnSR" name="column.cpp" compile="1" resource="0" file="Source/rosette/column.cpp"/>
+        <FILE id="heRgrg" name="column.h" compile="0" resource="0" file="Source/rosette/column.h"/>
+        <FILE id="DmHKQw" name="common.cpp" compile="1" resource="0" file="Source/rosette/common.cpp"/>
+        <FILE id="H93eUs" name="common.h" compile="0" resource="0" file="Source/rosette/common.h"/>
+        <FILE id="DzHg2h" name="savedata.h" compile="0" resource="0" file="Source/rosette/savedata.h"/>
+        <FILE id="fsGtKL" name="drawing.cpp" compile="1" resource="0" file="Source/rosette/drawing.cpp"/>
+        <FILE id="DBAdhK" name="drawing.h" compile="0" resource="0" file="Source/rosette/drawing.h"/>
+        <FILE id="K3usoP" name="editordata.h" compile="0" resource="0" file="Source/rosette/editordata.h"/>
+        <FILE id="Dacyel" name="enum.h" compile="0" resource="0" file="Source/rosette/enum.h"/>
+        <FILE id="XoDgFH" name="event.cpp" compile="1" resource="0" file="Source/rosette/event.cpp"/>
+        <FILE id="PYtIa4" name="event.h" compile="0" resource="0" file="Source/rosette/event.h"/>
+        <FILE id="biZCBD" name="playback.cpp" compile="1" resource="0" file="Source/rosette/playback.cpp"/>
+        <FILE id="KX8Kef" name="playback.h" compile="0" resource="0" file="Source/rosette/playback.h"/>
+        <FILE id="UCRzRZ" name="presentation.cpp" compile="1" resource="0"
+              file="Source/rosette/presentation.cpp"/>
+        <FILE id="AnE6Dq" name="presentation.h" compile="0" resource="0" file="Source/rosette/presentation.h"/>
+        <FILE id="DMTgJ7" name="rational.cpp" compile="1" resource="0" file="Source/rosette/rational.cpp"/>
+        <FILE id="MRorY1" name="rational.h" compile="0" resource="0" file="Source/rosette/rational.h"/>
+        <FILE id="Get8Oj" name="sheet.cpp" compile="1" resource="0" file="Source/rosette/sheet.cpp"/>
+        <FILE id="lIEqEy" name="sheet.h" compile="0" resource="0" file="Source/rosette/sheet.h"/>
+        <FILE id="KpBEIM" name="template.h" compile="0" resource="0" file="Source/rosette/template.h"/>
+        <FILE id="RYuAcF" name="ui.cpp" compile="1" resource="0" file="Source/rosette/ui.cpp"/>
+        <FILE id="WZ7pr3" name="ui.h" compile="0" resource="0" file="Source/rosette/ui.h"/>
+      </GROUP>
       <FILE id="CPD2xo" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
       <FILE id="QVB7XW" name="PluginProcessor.h" compile="0" resource="0"

@@ -16,23 +16,10 @@
 
 #pragma once
 
-#include "event.h"
-#include "rational.h"
-#include "enum.h"
-#include "channel.h"
-#include <map>
-#include <cstddef>
-
 namespace rosette {
-using ColumnIndex = std::size_t;
-struct Column {
-public:
-  ChannelIndex channelIndex;
-  Scope type;
-  std::map<rat, SheetEvent> events;
+using NoteNumber = int;
+using PPQ = double;
+using BPM = double;
+using SampleRate = double;
 
-  inline bool has(const rat &t) const { return events.contains(t); }
-  inline SheetEvent &operator[](const rat &t) { return events.at(t); }
-  inline const SheetEvent &operator[](const rat &t) const { return events.at(t); }
-};
 }

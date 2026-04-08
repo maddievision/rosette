@@ -27,9 +27,10 @@
 #include "template.h"
 
 namespace rosette {
-using PPQ = double;
-using BPM = double;
-using SampleRate = double;
+
+struct PluginCache {
+    rosette::Sheet shadowSheet{};
+};
 
 struct PlaybackTimeInfo {
     PPQ ppq{};

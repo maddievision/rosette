@@ -18,43 +18,17 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
-#include "rational.h"
-#include "template.h"
-#include "column.h"
-#include "sheet.h"
+#include "rosette/rational.h"
+#include "rosette/template.h"
+#include "rosette/column.h"
+#include "rosette/sheet.h"
+#include "rosette/savedata.h"
+#include "rosette/playback.h"
+#include "rosette/editordata.h"
 
 //==============================================================================
 /**
 */
-
-struct EditorData {
-    rosette::Sheet sheet{};
-};
-
-struct EditorState {
-    rosette::SheetRect selection{};
-    rosette::SheetPoint position{};
-    rosette::rat division{};
-    std::size_t step{};
-    juce::Point<int> scrollPos{};
-};
-
-struct EditorCache {
-    rosette::Sheet shadowSheet{};
-    std::vector<rosette::span<int>> columnSpans{};
-    std::vector<rosette::span<int>> channelSpans{};
-};
-
-struct PlaybackStateCache {
-    bool isPlaying{};
-    rosette::BPM bpm{120};
-    rosette::PPQ ppq{};
-    rosette::SampleRate sampleRate{};
-    std::size_t bufferSize{};
-    bool hasCycle{};
-    rosette::PPQ cycleStart{};
-    rosette::PPQ cycleEnd{};
-};
 
 class RosetteAudioProcessorEditor  : public juce::AudioProcessorEditor, public juce::Timer
 {
@@ -66,16 +40,17 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+    bool keyPressed(const juce::KeyPress& key) override;
+
 
 private:
-    EditorData m_data{};
-    EditorState m_state{};
-    EditorCache m_cache{};
-    PlaybackStateCache m_playback{};
+    rosette::EditorCache m_cache{};
     
     rosette::Sheet &getSheet();
+    const rosette::Sheet &getSheet() const;
     rosette::Sheet &getShadowSheet();
-    
+    const rosette::Sheet &getShadowSheet() const;
+
     void drawBackground(juce::Graphics& g);
     void drawGridLines(juce::Graphics& g);
     void drawStatus(juce::Graphics& g);
@@ -87,19 +62,66 @@ private:
     void drawCursor(juce::Graphics& g);
 
     void makeUpdates();
-    void updateShadow();
-    void updatePlaybackData();
     void updateEditorCache();
     
     float getPPQHeight() const;
     rosette::span<rosette::rat> getVisibleTimeArea() const;
-    juce::Point<int> getSheetBasePos(bool forGlobal = false) const;
+    juce::Point<int> getSheetBasePos(bool forGlobal = false, bool applyScroll = true) const;
     void updatePlaybackStateCache();
     double getCurrentTime() const;
+    
+    rosette::rat getStepLength() const;
+    void navigateTo(const rosette::SheetPoint& position);
+    
+    void checkUpdateScroll();
+    
+    juce::Rectangle<int> getCursorRect(bool applyScroll = true);
+    int getPlaybackY(bool applyScroll = true);
+    
+    void insertEvent(const rosette::SheetEvent& event, bool advance = true);
+    void clearEvent(bool advance = true);
+    void deleteEvent();
+    rosette::NoteNumber getNoteNumberInCurrentOctave(int baseNote) const;
+    void advanceToNextStep();
+    
+    rosette::Column& getCurrentColumn(bool inShadow = false);
+    rosette::ColAddress getCurrentAddress() const;
+    
+    
+    rosette::PluginEditorState &getState();
+    const rosette::PluginEditorState &getState() const;
+    rosette::PluginEditorConfig &getConfig();
+    const rosette::PluginEditorConfig &getConfig() const;
+    rosette::PluginData &getPluginData();
+    const rosette::PluginData &getPluginData() const;
+    rosette::PluginCache &getPluginCache();
+    const rosette::PluginCache &getPluginCache() const;
+
+    
+    rosette::EditorCache &getCache();
+    const rosette::EditorCache &getCache() const;
+
+    rosette::PlaybackStateCache &getPlaybackCache();
+    const rosette::PlaybackStateCache &getPlaybackCache() const;
+
+    rosette::DrawingCache &getDrawingCache();
+    const rosette::DrawingCache &getDrawingCache() const;
+
+    rosette::EditorConfigCache &getConfigCache();
+    const rosette::EditorConfigCache &getConfigCache() const;
+
+    rosette::EditorTempState &getTemp();
+    const rosette::EditorTempState &getTemp() const;
+    
+    RosetteAudioProcessor* getProcessor();
+    const RosetteAudioProcessor* getProcessor() const;
+
 
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
     RosetteAudioProcessor& audioProcessor;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RosetteAudioProcessorEditor)
+    
+    void setupDefaultState();
 };

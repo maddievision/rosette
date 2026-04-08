@@ -17,8 +17,9 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "playback.h"
-#include "common.h"
+#include "rosette/playback.h"
+#include "rosette/common.h"
+#include "rosette/savedata.h"
 
 //==============================================================================
 /**
@@ -33,6 +34,7 @@ struct RoseEvent {
 };
 
 
+// TODO(ruby): Move this to farbot::RealtimeObject
 struct RealTimeState {
     std::atomic<bool> isPlaying{};
     std::atomic<rosette::BPM> bpm{120};
@@ -46,50 +48,58 @@ struct RealTimeState {
 
 class RosetteAudioProcessor  : public juce::AudioProcessor
 {
-public:
+    public:
     //==============================================================================
     RosetteAudioProcessor();
     ~RosetteAudioProcessor() override;
-
+    
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
-
-   #ifndef JucePlugin_PreferredChannelConfigurations
+    
+#ifndef JucePlugin_PreferredChannelConfigurations
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
-   #endif
-
+#endif
+    
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
-
+    
     //==============================================================================
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override;
-
+    
     //==============================================================================
     const juce::String getName() const override;
-
+    
     bool acceptsMidi() const override;
     bool producesMidi() const override;
     bool isMidiEffect() const override;
     double getTailLengthSeconds() const override;
-
+    
     //==============================================================================
     int getNumPrograms() override;
     int getCurrentProgram() override;
     void setCurrentProgram (int index) override;
     const juce::String getProgramName (int index) override;
     void changeProgramName (int index, const juce::String& newName) override;
-
+    
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
     
     RealTimeState &getRealTimeState();
-
-private:
+    rosette::PluginData &getPluginData();
+    const rosette::PluginData &getPluginData() const;
+    rosette::PluginCache &getPluginCache();
+    const rosette::PluginCache &getPluginCache() const;
+    
+    void makeUpdates();
+    
+    private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RosetteAudioProcessor)
     
+    rosette::PluginData m_data{};
+    rosette::PluginCache m_cache{};
     rosette::PlaybackData m_pbData{};
     rosette::PlaybackState m_pbState{};
     RealTimeState m_rtState{};
@@ -99,4 +109,13 @@ private:
     int m_playerPos{};
     double lastPosition{};
     
+    void updateShadow();
+    void updatePlaybackData();
+    
+    rosette::Sheet &getSheet();
+    const rosette::Sheet &getSheet() const;
+    rosette::Sheet &getShadowSheet();
+    const rosette::Sheet &getShadowSheet() const;
+    
+    void setupDefaultState();
 };

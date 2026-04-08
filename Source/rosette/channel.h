@@ -15,7 +15,10 @@
  */
 
 #pragma once
+#include <cstddef>
 
 namespace rosette {
-using NoteNumber = int;
+
+using ChannelIndex = int;
+
 }

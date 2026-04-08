@@ -30,19 +30,7 @@ RosetteAudioProcessor::RosetteAudioProcessor()
                        )
 #endif
 {
-    // dummy sequence for now
-    trackerEvents.push_back({.t = 0.00, .note = 64});
-    trackerEvents.push_back({.t = 0.25, .note = 64});
-    trackerEvents.push_back({.t = 0.50, .isOff = true});
-    trackerEvents.push_back({.t = 0.75, .note = 64});
-    trackerEvents.push_back({.t = 1.00, .isOff = true});
-    trackerEvents.push_back({.t = 1.25, .note = 60});
-    trackerEvents.push_back({.t = 1.50, .note = 64});
-    trackerEvents.push_back({.t = 1.75, .isOff = true});
-    trackerEvents.push_back({.t = 2.00, .note = 67});
-    trackerEvents.push_back({.t = 2.25, .isOff = true});
-    trackerEvents.push_back({.t = 3.00, .note = 55});
-    trackerEvents.push_back({.t = 3.25, .isOff = true});
+    setupDefaultState();
 }
 
 RosetteAudioProcessor::~RosetteAudioProcessor()
@@ -334,12 +322,16 @@ void RosetteAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
+    m_data.saveState(destData);
 }
 
 void RosetteAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+    juce::MemoryBlock readData(data, sizeInBytes);
+    m_data.readState(readData);
+    makeUpdates();
 }
 
 RealTimeState &RosetteAudioProcessor::getRealTimeState() {
@@ -351,4 +343,130 @@ RealTimeState &RosetteAudioProcessor::getRealTimeState() {
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new RosetteAudioProcessor();
+}
+
+rosette::PluginData &RosetteAudioProcessor::getPluginData() {
+    return m_data;
+}
+
+const rosette::PluginData &RosetteAudioProcessor::getPluginData() const {
+    return m_data;
+}
+
+rosette::PluginCache &RosetteAudioProcessor::getPluginCache() {
+    return m_cache;
+}
+
+const rosette::PluginCache &RosetteAudioProcessor::getPluginCache() const {
+    return m_cache;
+}
+
+void RosetteAudioProcessor::makeUpdates() {
+    updateShadow();
+    updatePlaybackData();
+}
+
+void RosetteAudioProcessor::updateShadow() {
+    auto &sheet = getSheet();
+    sheet.cacheAddresses();
+    
+    auto &shadow = getShadowSheet();
+    
+    // synchronise columns
+    // remove extraneous cols
+    std::set<rosette::ColAddress> colAddresses{};
+    for (const auto &[addr, col]: shadow.columns) {
+        if (!sheet.has(addr)) {
+            colAddresses.insert(addr);
+        }
+    }
+    for (const auto &addr : colAddresses) {
+        shadow.columns.erase(addr);
+    }
+    
+    // add missing columns
+    colAddresses.clear();
+    for (const auto &[addr, col]: sheet.columns) {
+        if (!shadow.has(addr)) {
+            colAddresses.insert(addr);
+        }
+    }
+    
+    for (const auto &addr : colAddresses) {
+        shadow.getOrInsert(addr);
+    }
+    
+    getShadowSheet().cacheAddresses();
+    
+    for (const auto &[addr, col]: sheet.columns) {
+        auto &destCol = shadow[addr];
+        destCol.events.clear();
+        for (const auto &[t, ev]: col.events) {
+            auto modColCount = sheet.modColumnCount(addr.channelIndex, addr.noteIndex);
+            rosette::SheetEvent newEv = ev;
+            auto &sd = newEv.shadowData;
+            if (ev.type == rosette::EventType::Note) {
+                // we try to determine length;
+                auto it = col.events.upper_bound(t);
+                if (it != col.events.end()) {
+                    const auto &nextT = it->first;
+                    sd.length = nextT - t;
+                } else {
+                    sd.length = -1; // indefinite
+                }
+                
+                // we check if there's an attached volume mod;
+                float volAmt = 1.0f;
+                for (int i = 0; i < modColCount; ++i) {
+                    auto modAddr = addr.getMod(addr.noteIndex, i);
+                    if (!sheet.has(modAddr, t)) continue;
+                    const auto &modEv = sheet.at(modAddr, t);
+                    if (modEv.isEffectOfType(rosette::EffectType::Volume)) {
+                        volAmt = modEv.param1 / 99.0f;
+                    }
+                }
+                
+                sd.volAmt = volAmt;
+                
+            }
+            destCol.events.insert_or_assign(t, newEv);
+        }
+    }
+}
+
+void RosetteAudioProcessor::updatePlaybackData() {
+    // render shadow to playback data
+}
+
+rosette::Sheet &RosetteAudioProcessor::getSheet() {
+    return m_data.sheet;
+}
+const rosette::Sheet &RosetteAudioProcessor::getSheet() const {
+    return m_data.sheet;
+};
+rosette::Sheet &RosetteAudioProcessor::getShadowSheet() {
+    return m_cache.shadowSheet;
+}
+const rosette::Sheet &RosetteAudioProcessor::getShadowSheet() const {
+    return m_cache.shadowSheet;
+}
+
+void RosetteAudioProcessor::setupDefaultState() {
+    m_data.reset();
+    makeUpdates();
+    
+    
+    // dummy sequence for now
+    trackerEvents.push_back({.t = 0.00, .note = 64});
+    trackerEvents.push_back({.t = 0.25, .note = 64});
+    trackerEvents.push_back({.t = 0.50, .isOff = true});
+    trackerEvents.push_back({.t = 0.75, .note = 64});
+    trackerEvents.push_back({.t = 1.00, .isOff = true});
+    trackerEvents.push_back({.t = 1.25, .note = 60});
+    trackerEvents.push_back({.t = 1.50, .note = 64});
+    trackerEvents.push_back({.t = 1.75, .isOff = true});
+    trackerEvents.push_back({.t = 2.00, .note = 67});
+    trackerEvents.push_back({.t = 2.25, .isOff = true});
+    trackerEvents.push_back({.t = 3.00, .note = 55});
+    trackerEvents.push_back({.t = 3.25, .isOff = true});
 }

@@ -16,9 +16,9 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "ui.h"
-#include "presentation.h"
-#include "drawing.h"
+#include "rosette/ui.h"
+#include "rosette/presentation.h"
+#include "rosette/drawing.h"
 
 //==============================================================================
 RosetteAudioProcessorEditor::RosetteAudioProcessorEditor (RosetteAudioProcessor& p)
@@ -27,46 +27,73 @@ RosetteAudioProcessorEditor::RosetteAudioProcessorEditor (RosetteAudioProcessor&
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (800, 600);
-    
-    m_state.division = rosette::rat(1, 4);
-    
-    auto &sheet = getSheet();
-    auto &noteCol = sheet.getOrInsert(rosette::ColAddress::note(0, 0));
-    auto &modCol = sheet.getOrInsert(rosette::ColAddress::mod(0, 0, 0));
-    auto &fxCol = sheet.getOrInsert(rosette::ColAddress::channel(0, 0));
-    
-    // Dummy sequence for now
-    rosette::rat t{};
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::note(64, 0));
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::note(64, 0));
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::off());
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::note(64, 0));
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::off());
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::note(60, 0));
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::note(64, 0));
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::off());
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::note(67, 0));
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::off());
-    t += rosette::rat(3, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::note(55, 0));
-    t += rosette::rat(1, 4);
-    noteCol.events.insert_or_assign(t, rosette::SheetEvent::off());
-
-    makeUpdates();
+    setWantsKeyboardFocus(true);
+    setupDefaultState();
     startTimerHz(60);
 }
 
 RosetteAudioProcessorEditor::~RosetteAudioProcessorEditor()
 {
+}
+
+bool RosetteAudioProcessorEditor::keyPressed(const juce::KeyPress& key) {
+    // TODO(ruby): Implement an action system, and key combo -> action map
+    if (key == juce::KeyPress::downKey) {
+        navigateTo(getState().position.offsetRow(getStepLength()));
+        return true;
+    } else if (key == juce::KeyPress::upKey) {
+        navigateTo(getState().position.offsetRow(-getStepLength()));
+        return true;
+    } else if (key == juce::KeyPress::leftKey) {
+        navigateTo(getState().position.offsetCol(-1));
+        return true;
+    } else if (key == juce::KeyPress::rightKey) {
+        navigateTo(getState().position.offsetCol(1));
+        return true;
+    }
+    
+    
+    auto c = key.getTextCharacter();
+    auto addr = getCurrentAddress();
+    
+    if (addr.type == rosette::Scope::NOTE) {
+        if (getConfig().noteKeyMap.contains(c)) {
+            insertEvent(rosette::SheetEvent::note(getNoteNumberInCurrentOctave(getConfig().noteKeyMap[c]), getState().instrument));
+            return true;
+        } else if (c == '1') {
+            insertEvent(rosette::SheetEvent::off());
+            return true;
+        }
+    } else {
+        if (c == '!') {
+            insertEvent(rosette::SheetEvent::off());
+            return true;
+        }
+    }
+    
+    if (addr.type == rosette::Scope::MOD) {
+        if (getConfig().charToEffectTypeMap.contains(c)) {
+            auto effectType = getConfig().charToEffectTypeMap[c];
+            insertEvent(rosette::SheetEvent::effect(effectType, 0));
+            return true;
+        }
+        
+        if (getConfig().quickEffectMap.contains(c)) {
+            const auto &qe = getConfig().quickEffectMap[c];
+            insertEvent(rosette::SheetEvent::effect(qe.type, qe.param1, qe.param2));
+            return true;
+        }
+    }
+    
+    if (key == juce::KeyPress::backspaceKey) {
+        clearEvent();
+        return true;
+    } else if (key == juce::KeyPress::deleteKey) {
+        deleteEvent();
+        return true;
+    }
+    
+    return false;
 }
 
 //==============================================================================
@@ -84,6 +111,13 @@ void RosetteAudioProcessorEditor::paint (juce::Graphics& g)
     drawRuler(g);
     drawPlayhead(g, true);
     drawStatus(g);
+    auto &pb = getPlaybackCache();
+    auto &temp = getTemp();
+    if (pb.wasPlaying != pb.isPlaying) {
+        temp.shouldUpdateScroll = true;
+        pb.wasPlaying = pb.isPlaying;
+    }
+    checkUpdateScroll();
 }
 
 void RosetteAudioProcessorEditor::drawBackground(juce::Graphics& g) {
@@ -112,16 +146,17 @@ void RosetteAudioProcessorEditor::drawGridLines(juce::Graphics& g) {
         }
     };
     
+    const auto &dw = getDrawingCache();
     g.setColour(rosette::ui_colours::gridlineSecondaryColour);
-    drawSpans(m_cache.columnSpans);
+    drawSpans(dw.columnSpans);
     g.setColour(rosette::ui_colours::gridlinePrimaryColour);
-    drawSpans(m_cache.channelSpans);
+    drawSpans(dw.channelSpans);
 
     // horizontal lines
     
     auto ppqHeight = getPPQHeight();
     auto timeSpan = getVisibleTimeArea();
-    for (rosette::rat t = timeSpan.start; t <= timeSpan.end; t += m_state.division) {
+    for (rosette::rat t = timeSpan.start; t <= timeSpan.end; t += getState().division) {
         if (t.den == 1) {
             g.setColour(rosette::ui_colours::gridlinePrimaryColour);
         } else {
@@ -130,11 +165,12 @@ void RosetteAudioProcessorEditor::drawGridLines(juce::Graphics& g) {
         int y = sY + t.toFloat() * ppqHeight;
         g.drawLine(0, y, w, y);
     }
-        
-    if (m_playback.hasCycle) {
+     
+    const auto &pb = getPlaybackCache();
+    if (pb.hasCycle) {
         g.setColour(rosette::ui_colours::gridlineMarkerColour);
-        int y1 = gY + m_playback.cycleStart * ppqHeight;
-        int y2 = gY + m_playback.cycleEnd * ppqHeight;
+        int y1 = gY + pb.cycleStart * ppqHeight;
+        int y2 = gY + pb.cycleEnd * ppqHeight;
         g.drawLine(0, y1, w, y1);
         g.drawLine(0, y2, w, y2);
         
@@ -142,7 +178,6 @@ void RosetteAudioProcessorEditor::drawGridLines(juce::Graphics& g) {
         rosette::drawing::drawEffect(g, "END", 1.0f, rosette::ui_colours::noteMetaColour, rosette::drawing::NoteDrawFlags::None, gX, y2, rosette::ui_metrics::globalFxElWidth, rosette::ui_metrics::minRowHeight);
 
     }
-
 }
 
 
@@ -166,11 +201,12 @@ void RosetteAudioProcessorEditor::drawStatus(juce::Graphics& g) {
     int h = rosette::ui_metrics::statusHeight;
     g.fillRect(x, y, w - x, h);
     
-    auto isPlaying = m_playback.isPlaying;
-    auto bpm = m_playback.bpm;
-    auto ppq = m_playback.ppq;
-    auto sr = m_playback.sampleRate;
-    auto bufferSize = m_playback.bufferSize;
+    const auto &pb = getPlaybackCache();
+    auto isPlaying = pb.isPlaying;
+    auto bpm = pb.bpm;
+    auto ppq = pb.ppq;
+    auto sr = pb.sampleRate;
+    auto bufferSize = pb.bufferSize;
     
     g.setColour(rosette::ui_colours::eventTextColour);
     if (isPlaying) {
@@ -206,17 +242,26 @@ void RosetteAudioProcessorEditor::drawSheet(juce::Graphics& g) {
     int sY = s.getY();
     int colIndex = 0;
     auto ppqHeight = getPPQHeight();
+    auto visibleTime = getVisibleTimeArea();
     
+    const auto &dw = getDrawingCache();
+    const auto &pb = getPlaybackCache();
+    const auto &cfgc = getConfigCache();
     for (const auto &[addr, col] : sheet.columns) {
-        const auto &span = m_cache.columnSpans[colIndex];
+        const auto &span = dw.columnSpans[colIndex];
         int cX = sX + span.start;
         int cW = span.length();
         for (const auto &[t, ev] : col.events) {
             int eY = sY + t.toFloat() * ppqHeight;
-            rosette::rat eLen = std::max(m_state.division, ev.shadowData.length);
+            rosette::rat eLen{};
+            if (ev.shadowData.length.isNegative()) {
+                eLen = visibleTime.end - t;
+            } else {
+                eLen = std::max(getState().division, ev.shadowData.length);
+            }
             int flags{};
-            if (m_playback.isPlaying && ev.type == rosette::EventType::Note) {
-                if (m_playback.ppq >= t.toFloat() && m_playback.ppq < (t + eLen).toFloat()) {
+            if (pb.isPlaying && ev.type == rosette::EventType::Note) {
+                if (pb.ppq >= t.toFloat() && pb.ppq < (t + eLen).toFloat()) {
                     flags |= rosette::drawing::NoteDrawFlags::Active;
                 } else {
                     flags |= rosette::drawing::NoteDrawFlags::Inactive;
@@ -224,7 +269,7 @@ void RosetteAudioProcessorEditor::drawSheet(juce::Graphics& g) {
             }
             int eH = eLen.toFloat() * ppqHeight;
             int eW = cW - 2; // TODO(ruby): Magic number!
-            if (!t.divisibleBy(m_state.division.den)) {
+            if (!t.divisibleBy(getState().division.den)) {
                 flags |= rosette::drawing::NoteDrawFlags::OffGrid;
             }
             
@@ -236,7 +281,12 @@ void RosetteAudioProcessorEditor::drawSheet(juce::Graphics& g) {
                     rosette::drawing::drawNote(g, ev.noteNumber, ev.instrument, ev.shadowData.volAmt, flags, cX, eY, eW, eH);
                     break;
                 case rosette::EventType::Effect:
-                    rosette::drawing::drawEffect(g, "TODO", 1.0, rosette::ui_colours::metaColour, flags, cX, eY, eW, eH);
+                    char prefix = '?';
+                    if (cfgc.effectTypeToCharMap.contains(ev.effectType)) {
+                        prefix = cfgc.effectTypeToCharMap.at(ev.effectType);
+                    }
+                    juce::String label = juce::String::formatted("%c%02d", prefix, ev.param1);
+                    rosette::drawing::drawEffect(g, label, 1.0, rosette::ui_colours::noteVolColour, flags, cX, eY, eW, eH);
                     break;
             }
         }
@@ -275,33 +325,25 @@ void RosetteAudioProcessorEditor::drawSheet(juce::Graphics& g) {
 
 
 void RosetteAudioProcessorEditor::drawPlayhead(juce::Graphics& g, bool rulerWidth) {
-    auto s = getSheetBasePos();
-    auto ppqHeight = getPPQHeight();
     int w = rulerWidth ? rosette::ui_metrics::rulerWidth : getLocalBounds().getWidth();
-    int sY = s.getY();
-    if (!m_playback.isPlaying) {
-        int pY = sY + ppqHeight * m_state.position.row.toFloat();
+    int pY{};
+    const auto &pb = getPlaybackCache();
+    if (!pb.isPlaying) {
+        pY = getCursorRect().getY();
         g.setColour(rosette::ui_colours::currentRowColour);
-        g.fillRect(0, pY, w, static_cast<int>(rosette::ui_metrics::minRowHeight));
+    } else {
+        pY = getPlaybackY();
+        g.setColour(rosette::ui_colours::playTimeColour);
     }
-    int pY = sY + ppqHeight * m_playback.ppq;
-    g.setColour(rosette::ui_colours::playTimeColour);
     g.fillRect(0, pY, w, static_cast<int>(rosette::ui_metrics::minRowHeight));
 }
 
 void RosetteAudioProcessorEditor::drawCursor(juce::Graphics& g) {
-    if (m_playback.isPlaying) return;
-    auto s = getSheetBasePos();
-    auto ppqHeight = getPPQHeight();
-    int sX = s.getX();
-    int sY = s.getY();
-    const auto &span = m_cache.columnSpans[m_state.position.col];
-    int cY = m_state.position.row.toFloat() * ppqHeight;
-    int cX = span.start;
-    int cW = span.length();
-    int cH = rosette::ui_metrics::minRowHeight;
+    const auto &pb = getPlaybackCache();
+    if (pb.isPlaying) return;
+    auto rect = getCursorRect();
     g.setColour(rosette::ui_colours::cursorOutlineColour);
-    g.drawRect(sX + cX, sY + cY, cW, cH);
+    g.drawRect(rect);
 }
 
 void RosetteAudioProcessorEditor::resized()
@@ -315,35 +357,37 @@ void RosetteAudioProcessorEditor::timerCallback() {
 }
 
 rosette::Sheet &RosetteAudioProcessorEditor::getSheet() {
-    return m_data.sheet;
+    return getPluginData().sheet;
+}
+const rosette::Sheet &RosetteAudioProcessorEditor::getSheet() const {
+    return getPluginData().sheet;
 }
 rosette::Sheet &RosetteAudioProcessorEditor::getShadowSheet() {
-    return m_cache.shadowSheet;
+    return getPluginCache().shadowSheet;
+}
+const rosette::Sheet &RosetteAudioProcessorEditor::getShadowSheet() const {
+    return getPluginCache().shadowSheet;
 }
 
 void RosetteAudioProcessorEditor::makeUpdates() {
-    updateShadow();
-    updatePlaybackData();
+    auto proc = getProcessor();
+    proc->makeUpdates();
     updateEditorCache();
 }
 
-void RosetteAudioProcessorEditor::updateShadow() {
-    getSheet().cacheAddresses();
-    // render to shadow
-    m_cache.shadowSheet = m_data.sheet; // temp
-    
-    getShadowSheet().cacheAddresses();
-}
-
-void RosetteAudioProcessorEditor::updatePlaybackData() {
-    // render shadow to playback data
-}
-
 void RosetteAudioProcessorEditor::updateEditorCache() {
+    auto &ceMap = getConfig().charToEffectTypeMap;
+    auto &ecMap = getConfigCache().effectTypeToCharMap;
+    ecMap.clear();
+    for (auto [c, e] : ceMap) {
+        ecMap.insert_or_assign(e, c);
+    }
+
     const auto &sheet = getShadowSheet();
     const auto &columns = sheet.getColumns();
-    m_cache.columnSpans.clear();
-    m_cache.channelSpans.clear();
+    auto &dw = getDrawingCache();
+    dw.columnSpans.clear();
+    dw.channelSpans.clear();
     
     rosette::ColumnIndex i = 0;
     juce::Optional<rosette::ChannelIndex> lastC{};
@@ -353,7 +397,7 @@ void RosetteAudioProcessorEditor::updateEditorCache() {
     auto saveChannelWidth = [&] {
         if (lastC.hasValue()) {
             x += rosette::ui_metrics::columnGap;
-            m_cache.channelSpans.push_back({.start = channelX, .end = x});
+            dw.channelSpans.push_back({.start = channelX, .end = x});
         }
     };
     
@@ -377,7 +421,7 @@ void RosetteAudioProcessorEditor::updateEditorCache() {
                 w = rosette::ui_metrics::channelFxColWidth;
                 break;
         }
-        m_cache.columnSpans.push_back({.start = x, .end = x + w});
+        dw.columnSpans.push_back({.start = x, .end = x + w});
         x += w;
         ++i;
     }
@@ -385,14 +429,15 @@ void RosetteAudioProcessorEditor::updateEditorCache() {
 }
 
 float RosetteAudioProcessorEditor::getPPQHeight() const {
-    return m_state.division.den * rosette::ui_metrics::minRowHeight;
+    return getState().division.den * rosette::ui_metrics::minRowHeight;
 }
 
 rosette::span<rosette::rat> RosetteAudioProcessorEditor::getVisibleTimeArea() const {
     auto bounds = getLocalBounds();
     auto h = bounds.getHeight();
-    int yStart = m_state.scrollPos.y;
-    int yEnd = m_state.scrollPos.y + h;
+    const auto &temp = getTemp();
+    int yStart = temp.scrollPos.y;
+    int yEnd = temp.scrollPos.y + h;
     float ppqHeight = getPPQHeight();
 
     rosette::rat tStart = rosette::rat(std::floor(yStart / ppqHeight));
@@ -409,28 +454,252 @@ rosette::span<rosette::rat> RosetteAudioProcessorEditor::getVisibleTimeArea() co
 }
 
 void RosetteAudioProcessorEditor::updatePlaybackStateCache() {
-    const auto &rt = static_cast<RosetteAudioProcessor*>(getAudioProcessor())->getRealTimeState();
-    m_playback.isPlaying = rt.isPlaying.load();
-    m_playback.bpm = rt.bpm.load();
-    m_playback.ppq = rt.ppq.load();
-    m_playback.sampleRate = rt.sampleRate.load();
-    m_playback.bufferSize = rt.bufferSize.load();
-    m_playback.hasCycle = rt.hasCycle.load();
-    m_playback.cycleStart = rt.cycleStart.load();
-    m_playback.cycleEnd = rt.cycleEnd.load();
+    const auto &rt = getProcessor()->getRealTimeState();
+    auto &pb = getPlaybackCache();
+    pb.isPlaying = rt.isPlaying.load();
+    pb.bpm = rt.bpm.load();
+    pb.ppq = rt.ppq.load();
+    pb.sampleRate = rt.sampleRate.load();
+    pb.bufferSize = rt.bufferSize.load();
+    pb.hasCycle = rt.hasCycle.load();
+    pb.cycleStart = rt.cycleStart.load();
+    pb.cycleEnd = rt.cycleEnd.load();
 }
 
-juce::Point<int> RosetteAudioProcessorEditor::getSheetBasePos(bool forGlobal) const {
+juce::Point<int> RosetteAudioProcessorEditor::getSheetBasePos(bool forGlobal, bool applyScroll) const {
     int sX = forGlobal ? rosette::ui_metrics::sheetX : rosette::ui_metrics::sheetChanStartX;
     int sY = rosette::ui_metrics::sheetY;
     
-    return juce::Point<int>(sX, sY) - m_state.scrollPos;
+    const auto &temp = getTemp();
+    
+    if (applyScroll) {
+        return juce::Point<int>(sX, sY) - temp.scrollPos;
+    }
+    return juce::Point<int>(sX, sY);
 }
 
 double RosetteAudioProcessorEditor::getCurrentTime() const {
-    if (m_playback.isPlaying) {
-        return m_playback.ppq;
+    const auto &pb = getPlaybackCache();
+    const auto &state = getState();
+    if (pb.isPlaying) {
+        return pb.ppq;
     } else {
-        return m_state.position.row.toFloat();
+        return state.position.row.toFloat();
     }
+}
+
+rosette::rat RosetteAudioProcessorEditor::getStepLength() const {
+    const auto &state = getState();
+    return state.division * state.step;
+}
+
+void RosetteAudioProcessorEditor::navigateTo(const rosette::SheetPoint& position) {
+    auto &state = getState();
+    auto &pCache = getPluginCache();
+    rosette::SheetPoint newPos = position;
+    newPos.col = std::clamp(newPos.col, 0, static_cast<int>(pCache.shadowSheet.columnCount()) - 1);
+    newPos.row = std::max(rosette::rat{}, newPos.row);
+    state.position = newPos;
+    auto &temp = getTemp();
+    temp.shouldUpdateScroll = true;
+}
+
+void RosetteAudioProcessorEditor::checkUpdateScroll() {
+    auto &temp = getTemp();
+    auto &pb = getPlaybackCache();
+    if ((pb.isPlaying || temp.shouldUpdateScroll) && !temp.mouseGrab.active) {
+        temp.shouldUpdateScroll = false;
+        
+        auto bounds = getLocalBounds();
+        int w = bounds.getWidth();
+        int h = bounds.getHeight();
+        bool checkX{};
+        int cY{};
+        int cX{};
+        
+        if (pb.isPlaying) {
+            cY = getPlaybackY(false);
+        } else {
+            checkX = true;
+            auto rect = getCursorRect(false);
+            cX = rect.getX();
+            cY = rect.getY();
+        }
+        
+        int scrX = temp.scrollPos.getX();
+        int scrY = temp.scrollPos.getY();
+        
+        if (checkX) {
+            if (cX - scrX < rosette::ui_metrics::scrollThresholdX) {
+                temp.scrollPos.setX(cX - rosette::ui_metrics::scrollThresholdX);
+                if (temp.scrollPos.getX() < 0) temp.scrollPos.setX(0);
+            } else if (cX - scrX
+                       > w - rosette::ui_metrics::scrollThresholdX - rosette::ui_metrics::minimapWidth) {
+                temp.scrollPos.x = cX - w + rosette::ui_metrics::scrollThresholdX + rosette::ui_metrics::minimapWidth;
+            }
+        }
+        
+        int topScrollThresholdY = (pb.isPlaying ? (rosette::ui_metrics::scrollThresholdNpY * static_cast<float>(h)) : rosette::ui_metrics::scrollThresholdY);
+        int bottomScrollThresholdY = (pb.isPlaying ? (rosette::ui_metrics::scrollThresholdNpY * static_cast<float>(h)) : rosette::ui_metrics::scrollThresholdY);
+        
+        if (cY - scrY < topScrollThresholdY) {
+            temp.scrollPos.setY(cY - topScrollThresholdY);
+            if (temp.scrollPos.getY() < 0) temp.scrollPos.setY(0);
+        } else if (cY - scrY > h - bottomScrollThresholdY) {
+            temp.scrollPos.setY(cY - h + bottomScrollThresholdY);
+        }
+    }
+}
+
+juce::Rectangle<int> RosetteAudioProcessorEditor::getCursorRect(bool applyScroll) {
+    auto s = getSheetBasePos(false, applyScroll);
+    auto ppqHeight = getPPQHeight();
+    int sX = s.getX();
+    int sY = s.getY();
+    const auto &dw = getDrawingCache();
+    const auto &state = getState();
+    const auto &span = dw.columnSpans[getState().position.col];
+    int cY = sY + state.position.row.toFloat() * ppqHeight;
+    int cX = sX + span.start;
+    int cW = span.length();
+    int cH = rosette::ui_metrics::minRowHeight;
+    return juce::Rectangle<int>(cX, cY, cW, cH);
+}
+
+int RosetteAudioProcessorEditor::getPlaybackY(bool applyScroll) {
+    auto s = getSheetBasePos(false, applyScroll);
+    auto ppqHeight = getPPQHeight();
+    const auto &pb = getPlaybackCache();
+    return s.getY() + pb.ppq * ppqHeight;
+}
+
+void RosetteAudioProcessorEditor::insertEvent(const rosette::SheetEvent &event, bool advance) {
+    const auto &state = getState();
+    auto &sheet = getSheet();
+    auto &col = sheet.columnAtIndex(state.position.col);
+    const auto &t = state.position.row;
+    
+    col.events.insert_or_assign(t, event);
+    makeUpdates();
+    
+    if (advance) {
+        advanceToNextStep();
+    }
+}
+
+rosette::NoteNumber RosetteAudioProcessorEditor::getNoteNumberInCurrentOctave(int baseNote) const {
+    return baseNote + getState().octave * 12;
+}
+
+void RosetteAudioProcessorEditor::clearEvent(bool advance) {
+    auto &sheet = getSheet();
+    const auto &state = getState();
+    auto &col = sheet.columnAtIndex(state.position.col);
+    const auto &t = state.position.row;
+
+    if (col.has(t)) {
+        col.events.erase(t);
+        makeUpdates();
+    }
+    if (advance) {
+        advanceToNextStep();
+    }
+}
+
+void RosetteAudioProcessorEditor::deleteEvent() {
+    // delete everything up until the next step then shift up one step
+}
+
+void RosetteAudioProcessorEditor::advanceToNextStep() {
+    navigateTo(getState().position.offsetRow(getStepLength()));
+}
+
+rosette::Column& RosetteAudioProcessorEditor::getCurrentColumn(bool inShadow) {
+    auto &sheet = inShadow ? getShadowSheet() : getSheet();
+    return sheet[getState().position.col];
+}
+
+rosette::ColAddress RosetteAudioProcessorEditor::getCurrentAddress() const {
+    const auto &sheet = getSheet();
+    return sheet.getAddress(getState().position.col);
+}
+
+rosette::PluginData &RosetteAudioProcessorEditor::getPluginData() {
+    auto proc = getProcessor();
+    return proc->getPluginData();
+}
+
+const rosette::PluginData &RosetteAudioProcessorEditor::getPluginData() const {
+    auto proc = getProcessor();
+    return proc->getPluginData();
+}
+
+rosette::PluginCache &RosetteAudioProcessorEditor::getPluginCache() {
+    auto proc = getProcessor();
+    return proc->getPluginCache();
+}
+
+const rosette::PluginCache &RosetteAudioProcessorEditor::getPluginCache() const {
+    auto proc = getProcessor();
+    return proc->getPluginCache();
+}
+
+rosette::PluginEditorState &RosetteAudioProcessorEditor::getState() {
+    return getPluginData().editorState;
+}
+const rosette::PluginEditorState &RosetteAudioProcessorEditor::getState() const {
+    return getPluginData().editorState;
+}
+rosette::PluginEditorConfig &RosetteAudioProcessorEditor::getConfig() {
+    return getPluginData().config;
+}
+const rosette::PluginEditorConfig &RosetteAudioProcessorEditor::getConfig() const {
+    return getPluginData().config;
+}
+
+rosette::EditorCache &RosetteAudioProcessorEditor::getCache() {
+    return m_cache;
+}
+const rosette::EditorCache &RosetteAudioProcessorEditor::getCache() const {
+    return m_cache;
+}
+
+rosette::PlaybackStateCache &RosetteAudioProcessorEditor::getPlaybackCache() {
+    return getCache().playback;
+}
+const rosette::PlaybackStateCache &RosetteAudioProcessorEditor::getPlaybackCache() const {
+    return getCache().playback;
+}
+
+rosette::DrawingCache &RosetteAudioProcessorEditor::getDrawingCache() {
+    return getCache().drawing;
+}
+const rosette::DrawingCache &RosetteAudioProcessorEditor::getDrawingCache() const {
+    return getCache().drawing;
+}
+
+rosette::EditorConfigCache &RosetteAudioProcessorEditor::getConfigCache() {
+    return getCache().config;
+}
+const rosette::EditorConfigCache &RosetteAudioProcessorEditor::getConfigCache() const {
+    return getCache().config;
+}
+
+rosette::EditorTempState &RosetteAudioProcessorEditor::getTemp() {
+    return getCache().temp;
+}
+const rosette::EditorTempState &RosetteAudioProcessorEditor::getTemp() const {
+    return getCache().temp;
+}
+
+RosetteAudioProcessor* RosetteAudioProcessorEditor::getProcessor() {
+    return static_cast<RosetteAudioProcessor*>(getAudioProcessor());
+};
+
+const RosetteAudioProcessor* RosetteAudioProcessorEditor::getProcessor() const {
+    return static_cast<RosetteAudioProcessor*>(getAudioProcessor());
+};
+
+void RosetteAudioProcessorEditor::setupDefaultState() {
+    updateEditorCache();
 }
