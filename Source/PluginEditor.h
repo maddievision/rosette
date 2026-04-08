@@ -44,6 +44,8 @@ public:
 
 
 private:
+    juce::Font* m_font{};
+
     rosette::EditorCache m_cache{};
     
     rosette::Sheet &getSheet();

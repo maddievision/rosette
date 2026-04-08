@@ -29,11 +29,15 @@ RosetteAudioProcessorEditor::RosetteAudioProcessorEditor (RosetteAudioProcessor&
     setSize (800, 600);
     setWantsKeyboardFocus(true);
     setupDefaultState();
+    juce::FontOptions editorFont {juce::Typeface::createSystemTypefaceFor(BinaryData::FantasqueSansMonoRegular_ttf, BinaryData::FantasqueSansMonoRegular_ttfSize)};
+    m_font = new juce::Font(editorFont.withHeight(13));
+    
     startTimerHz(60);
 }
 
 RosetteAudioProcessorEditor::~RosetteAudioProcessorEditor()
 {
+    delete(m_font);
 }
 
 bool RosetteAudioProcessorEditor::keyPressed(const juce::KeyPress& key) {
@@ -100,7 +104,7 @@ bool RosetteAudioProcessorEditor::keyPressed(const juce::KeyPress& key) {
 void RosetteAudioProcessorEditor::paint (juce::Graphics& g)
 {
     updatePlaybackStateCache();
-    g.setFont(juce::FontOptions("Fantasque Sans Mono", 13.0f, juce::Font::plain));
+    g.setFont(*m_font);
     drawBackground(g);
     drawPlayhead(g);
     drawGridLines(g);

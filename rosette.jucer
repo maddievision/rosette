@@ -8,6 +8,10 @@
               pluginCharacteristicsValue="pluginIsMidiEffectPlugin,pluginIsSynth,pluginProducesMidiOut,pluginWantsMidiIn"
               cppLanguageStandard="20" pluginFormats="buildAU,buildVST3">
   <MAINGROUP id="qwc5rm" name="rosette">
+    <GROUP id="{510623AD-5A6E-E3FF-C650-693A9191E852}" name="Fonts">
+      <FILE id="Vv01aT" name="FantasqueSansMono-Regular.ttf" compile="0"
+            resource="1" file="vendor/fantasque-sans-mono/FantasqueSansMono-Regular.ttf"/>
+    </GROUP>
     <GROUP id="{C1B3CF8D-8226-3D40-FE2B-D8AE74CCAAD0}" name="Source">
       <GROUP id="{E2678F1B-197C-CCEC-7AFD-993D1DF138C5}" name="rosette">
         <FILE id="DzaWQ0" name="savedata.cpp" compile="1" resource="0" file="Source/rosette/savedata.cpp"/>
