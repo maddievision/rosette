@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="ELrAOo" name="rosette" projectType="audioplug" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" bundleIdentifier="art.rosemade.rosette"
+              companyWebsite="rosemade.art" companyName="Roses System" companyEmail="maddie@rosemade.art"
+              pluginCode="ROSE" pluginManufacturer="Roses System" aaxIdentifier="art.rosemade.rosette"
+              pluginAUMainType="'aumi'" companyCopyright="2026" version="0.0.1"
+              pluginCharacteristicsValue="pluginIsMidiEffectPlugin,pluginIsSynth,pluginProducesMidiOut,pluginWantsMidiIn"
+              cppLanguageStandard="20" pluginFormats="buildAU,buildVST3">
+  <MAINGROUP id="qwc5rm" name="rosette">
+    <GROUP id="{C1B3CF8D-8226-3D40-FE2B-D8AE74CCAAD0}" name="Source">
+      <FILE id="fDk7TD" name="common.cpp" compile="1" resource="0" file="Source/common.cpp"/>
+      <FILE id="xAxbxm" name="common.h" compile="0" resource="0" file="Source/common.h"/>
+      <FILE id="zlIk4c" name="playback.cpp" compile="1" resource="0" file="Source/playback.cpp"/>
+      <FILE id="ma2uFn" name="playback.h" compile="0" resource="0" file="Source/playback.h"/>
+      <FILE id="gmpmhD" name="ui.cpp" compile="1" resource="0" file="Source/ui.cpp"/>
+      <FILE id="U7zMBU" name="channel.cpp" compile="1" resource="0" file="Source/channel.cpp"/>
+      <FILE id="WVwD3K" name="channel.h" compile="0" resource="0" file="Source/channel.h"/>
+      <FILE id="z4P8EW" name="template.h" compile="0" resource="0" file="Source/template.h"/>
+      <FILE id="nyTPBc" name="drawing.cpp" compile="1" resource="0" file="Source/drawing.cpp"/>
+      <FILE id="PYLMmc" name="drawing.h" compile="0" resource="0" file="Source/drawing.h"/>
+      <FILE id="vlANAj" name="event.cpp" compile="1" resource="0" file="Source/event.cpp"/>
+      <FILE id="nXCrnx" name="event.h" compile="0" resource="0" file="Source/event.h"/>
+      <FILE id="IzmVwG" name="column.cpp" compile="1" resource="0" file="Source/column.cpp"/>
+      <FILE id="si3nIq" name="column.h" compile="0" resource="0" file="Source/column.h"/>
+      <FILE id="xqpV92" name="enum.h" compile="0" resource="0" file="Source/enum.h"/>
+      <FILE id="Zy8mU4" name="address.cpp" compile="1" resource="0" file="Source/address.cpp"/>
+      <FILE id="rm7jC8" name="address.h" compile="0" resource="0" file="Source/address.h"/>
+      <FILE id="jGsfbr" name="rational.cpp" compile="1" resource="0" file="Source/rational.cpp"/>
+      <FILE id="YErN5i" name="rational.h" compile="0" resource="0" file="Source/rational.h"/>
+      <FILE id="RoqD9x" name="sheet.cpp" compile="1" resource="0" file="Source/sheet.cpp"/>
+      <FILE id="ZSsXP5" name="sheet.h" compile="0" resource="0" file="Source/sheet.h"/>
+      <FILE id="MoSqZS" name="presentation.cpp" compile="1" resource="0"
+            file="Source/presentation.cpp"/>
+      <FILE id="Mo0QCz" name="presentation.h" compile="0" resource="0" file="Source/presentation.h"/>
+      <FILE id="GabSil" name="ui.h" compile="0" resource="0" file="Source/ui.h"/>
+      <FILE id="CPD2xo" name="PluginProcessor.cpp" compile="1" resource="0"
+            file="Source/PluginProcessor.cpp"/>
+      <FILE id="QVB7XW" name="PluginProcessor.h" compile="0" resource="0"
+            file="Source/PluginProcessor.h"/>
+      <FILE id="P7pkQn" name="PluginEditor.cpp" compile="1" resource="0"
+            file="Source/PluginEditor.cpp"/>
+      <FILE id="pUhPhf" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors_headless" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="rosette"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="rosette"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../../JUCE/modules"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+  </EXPORTFORMATS>
+</JUCERPROJECT>
