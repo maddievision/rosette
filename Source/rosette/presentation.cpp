@@ -58,14 +58,9 @@ juce::Colour HsvToRgb(float h, float s, float v, float a) {
     return juce::Colour(static_cast<juce::uint8>((r + m) * 255), static_cast<juce::uint8>((g + m) * 255), static_cast<juce::uint8>((b + m) * 255), static_cast<juce::uint8>(alpha));
 }
 
-juce::String getNoteName(int note, bool includeOctave, bool showFlats) {
+juce::String getNoteName(int note, int style) {
     int baseNote = note % 12;
-    int octave = note / 12;
-    if (includeOctave) {
-        return juce::String::formatted("%s%d", noteNamesByStyle[showFlats ? 1 : 0][baseNote], octave);
-    } else {
-        return noteNamesByStyle[showFlats ? 1 : 0][baseNote];
-    }
+    return juce::String::fromUTF8(noteNames[baseNote][style]);
 }
 
 juce::Colour getColour(int segments, int note, float sat, float val, float alpha) {

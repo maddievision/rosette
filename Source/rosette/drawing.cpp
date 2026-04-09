@@ -54,7 +54,7 @@ void drawOff(juce::Graphics& g, int drawFlags, int x, int y, int w, int h) {
     g.drawText("===", x + rosette::ui_metrics::textInsetX, y, 100, 100, juce::Justification::topLeft);
 }
 
-void drawNote(juce::Graphics& g, int noteNumber, int inst, float volAmt, int drawFlags, int x, int y, int w, int h) {
+void drawNote(juce::Graphics& g, int noteNumber, int inst, int displayStyle, float volAmt, int drawFlags, int x, int y, int w, int h) {
     auto textColour = rosette::ui_colours::metaColour;
 
     int baseNote = noteNumber % 12;
@@ -63,7 +63,7 @@ void drawNote(juce::Graphics& g, int noteNumber, int inst, float volAmt, int dra
     
     auto strokeColour = rosette::note_display::getColour(12, noteColourId, sat, 1.0, 1.0);
     auto fillColour = rosette::note_display::getColour(12, noteColourId, sat, 0.15 * volAmt, 1.0);
-    auto noteName = rosette::note_display::getNoteName(baseNote, false);
+    auto noteName = rosette::note_display::getNoteName(baseNote, displayStyle);
 
     
     if (drawFlags & NoteDrawFlags::Active) {

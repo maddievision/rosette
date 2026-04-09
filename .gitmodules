@@ -1,0 +1,3 @@
+[submodule "vendor/farbot"]
+	path = vendor/farbot
+	url = https://github.com/hogliux/farbot.git

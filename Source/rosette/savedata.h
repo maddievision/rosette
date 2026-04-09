@@ -34,12 +34,16 @@ struct PluginEditorConfig {
 };
 
 struct PluginEditorState {
+    juce::Rectangle<int> windowSize{};
     SheetRect selection{};
     SheetPoint position{};
     rat division{};
     int step{1};
     int octave{5};
     int instrument{0};
+    bool enableStepInput{true};
+    bool enableMidiStepInput{};
+    bool enableMidiVelocityInput{};
 };
 
 struct MouseGrabState {

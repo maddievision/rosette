@@ -29,35 +29,83 @@
 namespace rosette {
 
 struct PluginCache {
-    rosette::Sheet shadowSheet{};
-};
-
-struct PlaybackTimeInfo {
-    PPQ ppq{};
+    Sheet shadowSheet{};
 };
 
 struct PlaybackEvent {
-    PlaybackTimeInfo time{};
+    PPQ ppq{};
     juce::MidiMessage midiEvent{};
 };
 
+constexpr int PLAYBACK_CAPACITY = 4096;
+
+struct PlaybackEventList {
+    std::size_t size{};
+    std::array<PlaybackEvent, PLAYBACK_CAPACITY> data{};
+    
+    bool push(const PlaybackEvent& ev) {
+        if (size >= PLAYBACK_CAPACITY) {
+            return false;
+        }
+        data[size++] = ev;
+        return true;
+    }
+    
+    const PlaybackEvent &at(std::size_t index) const {
+        return data[index];
+    }
+};
+
 using ChannelNote = point<NoteNumber, ChannelIndex>;
-using PlaybackEventList = std::vector<rosette::PlaybackEvent>;
 
 struct PlaybackData {
     PlaybackEventList events;
 };
 
 struct PlaybackState {
+    std::atomic<bool> eventsInvalidated{};
+    
     bool isPlaying{};
     bool needsResync{};
-    PlaybackEventList::size_type listPos{};
+    std::size_t listPos{};
     juce::SortedSet<ChannelNote> activeNotes{};
     PPQ lastPPQ{};
 };
 
+struct NoteColControl {
+    juce::Optional<int> lastNote{};
+    juce::Optional<int> lastInstrument{};
+    juce::Optional<int> lastVelocity{};
+};
+
+struct MIDIChannelControl {
+    juce::Optional<int> lastProgram;
+    float pitchWheelAmount = 0;
+    float noteSlideAmount = 0;
+    float pitchWheelOffset = 0;
+    float bendRange = 2;
+    int modWheelAmount = 0;
+    int rpnLSB = 0;
+    int rpnMSB = 0;
+    int dataLSB = 0;
+    int dataMSB = 0;
+    std::array<uint8_t, 128> cc{};
+    int getRPN() const { return rpnMSB << 7 | rpnLSB; }
+    int getData() const { return dataMSB << 7 | dataLSB; }
+};
+
+struct ChannelMIDIControl {
+    int midiChannel{};
+    std::vector<NoteColControl> noteCtrl{};
+};
+
 struct PlaybackMidiRenderState {
-    
+    int ticks{};
+    double bpm{};
+    int tickRate{};
+
+    std::array<MIDIChannelControl, 16> midiCtrl{};
+    std::vector<ChannelMIDIControl> chanCtrl{};
 };
 
 }

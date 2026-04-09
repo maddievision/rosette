@@ -44,6 +44,9 @@ constexpr float minRowHeight = 14;
 constexpr float rulerX = 0;
 constexpr float rulerY = 0;
 constexpr float rulerWidth = 75;
+constexpr float rulerBarX = rulerX + margin;
+constexpr float rulerBeatX = rulerX + margin + 25;
+constexpr float rulerDivX = rulerX + margin + 50;
 
 constexpr float charWidth = 7;
 constexpr float channelNameMinDisplayWidth = 80;
@@ -53,17 +56,17 @@ constexpr float lineHeight = 14;
 
 constexpr float headerHeight = lineHeight * 6;
 
-constexpr float statusHeight = lineHeight * 1;
+constexpr float statusHeight = lineHeight * 2;
 constexpr float statusY = 0;
 constexpr float statusX = 0;
 
 constexpr float cornerHeaderX = rulerX;
 constexpr float cornerWidth = rulerWidth;
-constexpr float cornerHeaderY = statusHeight;
+constexpr float cornerHeaderY = 0;
 constexpr float cornerHeight = headerHeight;
 
 constexpr float headerX = rulerX + rulerWidth;
-constexpr float headerY = statusY + statusHeight;
+constexpr float headerY = 0;
 
 constexpr float sheetX = rulerX + rulerWidth;
 constexpr float sheetChanStartX = sheetX + globalFxColWidth;

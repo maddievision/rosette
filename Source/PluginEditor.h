@@ -42,8 +42,20 @@ public:
     void timerCallback() override;
     bool keyPressed(const juce::KeyPress& key) override;
 
-
 private:
+    juce::Slider divisionSlider;
+    juce::Label divisionLabel;
+    juce::Slider stepSlider;
+    juce::Label stepLabel;
+    juce::Slider octaveSlider;
+    juce::Label octaveLabel;
+    juce::Slider instrumentSlider;
+    juce::Label instrumentLabel;
+    juce::ToggleButton enableStepInputButton;
+    juce::ToggleButton enableMidiStepInputButton;
+    juce::ToggleButton enableMidiVelocityInputButton;
+    juce::ToggleButton enableLiveRecordButton;
+
     juce::Font* m_font{};
 
     rosette::EditorCache m_cache{};
@@ -52,9 +64,12 @@ private:
     const rosette::Sheet &getSheet() const;
     rosette::Sheet &getShadowSheet();
     const rosette::Sheet &getShadowSheet() const;
+    
+    void setupComponents();
 
     void drawBackground(juce::Graphics& g);
     void drawGridLines(juce::Graphics& g);
+    void drawMarkers(juce::Graphics& g);
     void drawStatus(juce::Graphics& g);
     void drawHeader(juce::Graphics& g);
     void drawCorner(juce::Graphics& g);
@@ -62,12 +77,13 @@ private:
     void drawSheet(juce::Graphics& g);
     void drawPlayhead(juce::Graphics& g, bool rulerWidth = false);
     void drawCursor(juce::Graphics& g);
+    void drawRightMask(juce::Graphics &g);
 
     void makeUpdates();
     void updateEditorCache();
     
     float getPPQHeight() const;
-    rosette::span<rosette::rat> getVisibleTimeArea() const;
+    rosette::bounds<rosette::rat> getVisibleTimeArea() const;
     juce::Point<int> getSheetBasePos(bool forGlobal = false, bool applyScroll = true) const;
     void updatePlaybackStateCache();
     double getCurrentTime() const;
@@ -80,7 +96,8 @@ private:
     juce::Rectangle<int> getCursorRect(bool applyScroll = true);
     int getPlaybackY(bool applyScroll = true);
     
-    void insertEvent(const rosette::SheetEvent& event, bool advance = true);
+    void insertEvent(const rosette::SheetEvent& event, bool advance = true, bool monitorKey = false, juce::Optional<float> withVolume = {});
+    void cycleNoteDisplayStyle();
     void clearEvent(bool advance = true);
     void deleteEvent();
     rosette::NoteNumber getNoteNumberInCurrentOctave(int baseNote) const;
@@ -117,6 +134,12 @@ private:
     
     RosetteAudioProcessor* getProcessor();
     const RosetteAudioProcessor* getProcessor() const;
+    
+    void handleMidiMessage(const RosetteMidiMessage &msg);
+    
+    void queueMidiMessage(juce::MidiMessage msg);
+    
+    void playbackStateChanged(bool newVal);
 
 
     // This reference is provided as a quick way for your editor to

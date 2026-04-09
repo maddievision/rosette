@@ -6,13 +6,32 @@
               pluginCode="ROSE" pluginManufacturer="Roses System" aaxIdentifier="art.rosemade.rosette"
               pluginAUMainType="'aumi'" companyCopyright="2026" version="0.0.1"
               pluginCharacteristicsValue="pluginIsMidiEffectPlugin,pluginIsSynth,pluginProducesMidiOut,pluginWantsMidiIn"
-              cppLanguageStandard="20" pluginFormats="buildAU,buildVST3">
+              cppLanguageStandard="20" pluginFormats="buildAU,buildVST3" headerPath="../../vendor/farbot/include">
   <MAINGROUP id="qwc5rm" name="rosette">
     <GROUP id="{510623AD-5A6E-E3FF-C650-693A9191E852}" name="Fonts">
       <FILE id="Vv01aT" name="FantasqueSansMono-Regular.ttf" compile="0"
             resource="1" file="vendor/fantasque-sans-mono/FantasqueSansMono-Regular.ttf"/>
     </GROUP>
     <GROUP id="{C1B3CF8D-8226-3D40-FE2B-D8AE74CCAAD0}" name="Source">
+      <GROUP id="{183A9E6F-923F-ADC3-230E-974301ED7045}" name="vendor">
+        <GROUP id="{8411EB3E-D8B0-5EFF-55E2-8D967A4BBC0B}" name="farbot">
+          <GROUP id="{8343ACCD-06D8-814E-35DE-AEA09E543D37}" name="include">
+            <GROUP id="{42EB38F5-939C-82B8-5849-A08DC6A52FC5}" name="farbot">
+              <GROUP id="{809E1DE7-4F73-9C63-5AEB-EFE6255B8D66}" name="detail">
+                <FILE id="dcv6m2" name="fifo.tcc" compile="0" resource="0" file="vendor/farbot/include/farbot/detail/fifo.tcc"/>
+                <FILE id="gZqH5q" name="RealtimeObject.tcc" compile="0" resource="0"
+                      file="vendor/farbot/include/farbot/detail/RealtimeObject.tcc"/>
+              </GROUP>
+              <FILE id="qjntKm" name="AsyncCaller.hpp" compile="0" resource="0" file="vendor/farbot/include/farbot/AsyncCaller.hpp"/>
+              <FILE id="IKucGQ" name="fifo.hpp" compile="0" resource="0" file="vendor/farbot/include/farbot/fifo.hpp"/>
+              <FILE id="oLj4wQ" name="RealtimeObject.hpp" compile="0" resource="0"
+                    file="vendor/farbot/include/farbot/RealtimeObject.hpp"/>
+              <FILE id="ROE9ma" name="RealtimeTraits.hpp" compile="0" resource="0"
+                    file="vendor/farbot/include/farbot/RealtimeTraits.hpp"/>
+            </GROUP>
+          </GROUP>
+        </GROUP>
+      </GROUP>
       <GROUP id="{E2678F1B-197C-CCEC-7AFD-993D1DF138C5}" name="rosette">
         <FILE id="DzaWQ0" name="savedata.cpp" compile="1" resource="0" file="Source/rosette/savedata.cpp"/>
         <FILE id="mhiI1b" name="address.cpp" compile="1" resource="0" file="Source/rosette/address.cpp"/>

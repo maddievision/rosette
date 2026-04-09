@@ -43,23 +43,25 @@ struct EditorTempState {
     MouseGrabState mouseGrab{};
     bool shouldUpdateScroll{};
     juce::Point<int> scrollPos{};
+    bool capturingLiveMidi{};
+    juce::Optional<int> lastMonitoredNote{};
 };
 
 struct PlaybackStateCache {
     bool wasPlaying{};
     bool isPlaying{};
-    rosette::BPM bpm{120};
-    rosette::PPQ ppq{};
-    rosette::SampleRate sampleRate{};
+    BPM bpm{120};
+    PPQ ppq{};
+    SampleRate sampleRate{};
     std::size_t bufferSize{};
     bool hasCycle{};
-    rosette::PPQ cycleStart{};
-    rosette::PPQ cycleEnd{};
+    PPQ cycleStart{};
+    PPQ cycleEnd{};
 };
 
 struct DrawingCache {
-    std::vector<rosette::span<int>> columnSpans{};
-    std::vector<rosette::span<int>> channelSpans{};
+    std::vector<bounds<int>> columnBounds{};
+    std::vector<bounds<int>> channelBounds{};
 };
 
 struct EditorCache {

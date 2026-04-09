@@ -90,7 +90,7 @@ struct point {
 };
 
 template<typename T>
-struct span {
+struct bounds {
   T start;
   T end;
 

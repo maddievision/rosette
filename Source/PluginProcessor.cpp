@@ -20,16 +20,18 @@
 //==============================================================================
 RosetteAudioProcessor::RosetteAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
-     : AudioProcessor (BusesProperties()
-                     #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
-                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                      #endif
-                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                     #endif
-                       )
+: AudioProcessor (BusesProperties()
+#if ! JucePlugin_IsMidiEffect
+#if ! JucePlugin_IsSynth
+                  .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
+#endif
+                  .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
+#endif
+                  )
 #endif
 {
+    m_midiMessageBuffer = std::make_unique<RosetteMidiMessageBuffer>(512);
+    m_midiOutMessageBuffer = std::make_unique<JuceMidiMessageBuffer>(512);
     setupDefaultState();
 }
 
@@ -45,29 +47,29 @@ const juce::String RosetteAudioProcessor::getName() const
 
 bool RosetteAudioProcessor::acceptsMidi() const
 {
-   #if JucePlugin_WantsMidiInput
+#if JucePlugin_WantsMidiInput
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 bool RosetteAudioProcessor::producesMidi() const
 {
-   #if JucePlugin_ProducesMidiOutput
+#if JucePlugin_ProducesMidiOutput
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 bool RosetteAudioProcessor::isMidiEffect() const
 {
-   #if JucePlugin_IsMidiEffect
+#if JucePlugin_IsMidiEffect
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 double RosetteAudioProcessor::getTailLengthSeconds() const
@@ -78,7 +80,7 @@ double RosetteAudioProcessor::getTailLengthSeconds() const
 int RosetteAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
-                // so this should be at least 1, even if you're not really implementing programs.
+    // so this should be at least 1, even if you're not really implementing programs.
 }
 
 int RosetteAudioProcessor::getCurrentProgram()
@@ -115,53 +117,50 @@ void RosetteAudioProcessor::releaseResources()
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool RosetteAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
-  #if JucePlugin_IsMidiEffect
+#if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
     return true;
-  #else
+#else
     // This is the place where you check if the layout is supported.
     // In this template code we only support mono or stereo.
     // Some plugin hosts, such as certain GarageBand versions, will only
     // load plugins that support stereo bus layouts.
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
-
+    
     // This checks if the input layout matches the output layout
-   #if ! JucePlugin_IsSynth
+#if ! JucePlugin_IsSynth
     if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
         return false;
-   #endif
-
+#endif
+    
     return true;
-  #endif
+#endif
 }
 #endif
 
 void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    farbot::RealtimeObject<rosette::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable>::ScopedAccess<farbot::ThreadType::realtime> eventList(m_playbackEventsRT);
+    if (m_pbState.eventsInvalidated.load()) {
+        m_pbState.needsResync = true;
+        m_pbState.eventsInvalidated.store(false);
+    }
+    
     auto sampleCount = buffer.getNumSamples();
     auto sampleRate = getSampleRate();
     m_rtState.bufferSize.store(sampleCount);
     m_rtState.sampleRate.store(sampleRate);
     buffer.clear();
     juce::MidiBuffer processedMidi;
-    for (const auto metadata : midiMessages) {
-        // passthrough any MIDI
-        auto message = metadata.getMessage();
-        const auto time = metadata.samplePosition;
-        processedMidi.addEvent(message, time);
-        
-        // debug, duplicate notes an octave higher
-//        if (message.isNoteOnOrOff()) {
-//            message.setNoteNumber(message.getNoteNumber() + 12);
-//            processedMidi.addEvent(message, time);
-//        }
-    }
+    
+    rosette::PPQ beatLength{};
+    rosette::PPQ basePPQ{};
     
     const auto playhead = getPlayHead();
     const auto pos = playhead->getPosition();
-    auto eventCount = trackerEvents.size();
+    auto eventCount = eventList->size;
     if (pos.hasValue()) {
         
         
@@ -172,34 +171,35 @@ void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
             m_rtState.bpm.store(*pos->getBpm());
         }
         if (pos->getPpqPosition().hasValue()) {
-            m_rtState.ppq.store(*pos->getPpqPosition());
+            basePPQ = *pos->getPpqPosition();
+            m_rtState.ppq.store(basePPQ);
         }
         if (pos->getLoopPoints().hasValue()) {
             auto loopPoints = *pos->getLoopPoints();
             m_rtState.cycleStart.store(loopPoints.ppqStart);
             m_rtState.cycleEnd.store(loopPoints.ppqEnd);
         }
-
+        
         
         
         if (!m_pbState.isPlaying && pos->getIsPlaying() && pos->getPpqPosition().hasValue()) {
-            m_playerPos = 0;
-            m_lastNote = {};
+            m_pbState.listPos = 0;
+            //            m_lastNote = {};
             // begin playback
             m_pbState.lastPPQ = *pos->getPpqPosition();
             m_pbState.isPlaying = true;
             m_pbState.needsResync = true;
-       }
+        }
         
-        if (!pos->getIsPlaying()) {
+        if (!pos->getIsPlaying() && m_pbState.isPlaying) {
             m_pbState.isPlaying = false;
-            m_playerPos = 0;
+            m_pbState.listPos = 0;
             m_pbState.lastPPQ = 0;
-            if (m_lastNote.hasValue()) {
-                // All notes off
-                processedMidi.addEvent(juce::MidiMessage::controllerEvent(0, 123, 0), 0);
-                m_lastNote = {};
-            }
+            //            if (m_lastNote.hasValue()) {
+            // All notes off
+            processedMidi.addEvent(juce::MidiMessage::controllerEvent(0, 123, 0), 0);
+            //                m_lastNote = {};
+            //            }
         }
         
         // attempt to detect a seek
@@ -217,16 +217,16 @@ void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         
         if (m_pbState.isPlaying && m_pbState.needsResync) {
             m_pbState.needsResync = false;
-            if (m_lastNote.hasValue()) {
-                // All notes off
-                processedMidi.addEvent(juce::MidiMessage::controllerEvent(0, 123, 0), 0);
-                m_lastNote = {};
-            }
-
+            //            if (m_lastNote.hasValue()) {
+            // All notes off
+            processedMidi.addEvent(juce::MidiMessage::controllerEvent(0, 123, 0), 0);
+            //            m_lastNote = {};
+            //            }
+            
             // skip event
-            m_playerPos = 0;
-            while (m_playerPos < eventCount && trackerEvents[m_playerPos].t < m_pbState.lastPPQ) {
-                ++m_playerPos;
+            m_pbState.listPos = 0;
+            while (m_pbState.listPos < eventCount && eventList->at(m_pbState.listPos).ppq < m_pbState.lastPPQ) {
+                ++m_pbState.listPos;
             }
         }
         
@@ -236,7 +236,7 @@ void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
             auto bpm = *pos->getBpm();
             auto spb = 60.0 / bpm;
             double secLength = static_cast<double>(sampleCount) / sampleRate;
-            auto beatLength = secLength / spb;
+            beatLength = secLength / spb;
             auto maxT = m_pbState.lastPPQ + beatLength;
             double cycleStart = 0;
             double cycleEnd = 0;
@@ -256,50 +256,81 @@ void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
                 maxTAfterLoop = cycleStart + (maxT - cycleEnd);
                 minTAfterLoop = cycleStart - (cycleEnd - m_pbState.lastPPQ);
             }
-
-            while (m_playerPos < eventCount && (processCycleLoop ? trackerEvents[m_playerPos].t < cycleEnd : trackerEvents[m_playerPos].t <= maxT)) {
-                const auto &ev = trackerEvents[m_playerPos];
-                auto t = ev.t;
+            
+            while (m_pbState.listPos < eventCount && (processCycleLoop ? eventList->at(m_pbState.listPos).ppq < cycleEnd : eventList->at(m_pbState.listPos).ppq <= maxT)) {
+                const auto &ev = eventList->at(m_pbState.listPos);
+                auto t = ev.ppq;
                 auto sampleNum = (t - m_pbState.lastPPQ) * spb * sampleRate;
-                if (m_lastNote.hasValue()) {
-                    processedMidi.addEvent(juce::MidiMessage::noteOff(0, *m_lastNote), sampleNum);
-                    m_lastNote = {};
-                }
-                if (!ev.isOff) {
-                    auto m = juce::MidiMessage::noteOn(0, ev.note, static_cast<juce::uint8>(127));
-                    processedMidi.addEvent(m, sampleNum);
-                    m_lastNote = ev.note;
-                }
-                ++m_playerPos;
+                processedMidi.addEvent(ev.midiEvent, sampleNum);
+                
+                //                if (m_lastNote.hasValue()) {
+                //                    processedMidi.addEvent(juce::MidiMessage::noteOff(0, *m_lastNote), sampleNum);
+                //                    m_lastNote = {};
+                //                }
+                //                if (!ev.isOff) {
+                //                    auto m = juce::MidiMessage::noteOn(0, ev.note, static_cast<juce::uint8>(127));
+                //                    processedMidi.addEvent(m, sampleNum);
+                //                    m_lastNote = ev.note;
+                //                }
+                ++m_pbState.listPos;
             }
             
             if (processCycleLoop) {
-                m_playerPos = 0;
-                while (m_playerPos < eventCount && trackerEvents[m_playerPos].t < cycleStart) {
-                    ++m_playerPos;
+                m_pbState.listPos = 0;
+                while (m_pbState.listPos < eventCount && eventList->at(m_pbState.listPos).ppq < cycleStart) {
+                    ++m_pbState.listPos;
                 }
-
+                
                 processedMidi.addEvent(juce::MidiMessage::controllerEvent(0, 123, 0), (cycleEnd - m_pbState.lastPPQ) * spb * sampleRate);
-                m_lastNote = {};
-
-                while (m_playerPos < eventCount && trackerEvents[m_playerPos].t <= maxTAfterLoop) {
-                    const auto &ev = trackerEvents[m_playerPos];
-                    auto t = ev.t;
+                //                m_lastNote = {};
+                
+                while (m_pbState.listPos < eventCount && eventList->at(m_pbState.listPos).ppq <= maxTAfterLoop) {
+                    const auto &ev = eventList->at(m_pbState.listPos);
+                    auto t = ev.ppq;
                     auto sampleNum = (t - minTAfterLoop) * spb * sampleRate;
-                    if (m_lastNote.hasValue()) {
-                        processedMidi.addEvent(juce::MidiMessage::noteOff(0, *m_lastNote), sampleNum);
-                        m_lastNote = {};
-                    }
-                    if (!ev.isOff) {
-                        auto m = juce::MidiMessage::noteOn(0, ev.note, static_cast<juce::uint8>(127));
-                        processedMidi.addEvent(m, sampleNum);
-                        m_lastNote = ev.note;
-                    }
-                    ++m_playerPos;
+                    processedMidi.addEvent(ev.midiEvent, sampleNum);
+                    
+                    //                    if (m_lastNote.hasValue()) {
+                    //                        processedMidi.addEvent(juce::MidiMessage::noteOff(0, *m_lastNote), sampleNum);
+                    //                        m_lastNote = {};
+                    //                    }
+                    //                    if (!ev.isOff) {
+                    //                        auto m = juce::MidiMessage::noteOn(0, ev.note, static_cast<juce::uint8>(127));
+                    //                        processedMidi.addEvent(m, sampleNum);
+                    //                        m_lastNote = ev.note;
+                    //                    }
+                    ++m_pbState.listPos;
                 }
                 m_pbState.lastPPQ = minTAfterLoop;
             }
         }
+    }
+    
+    for (const auto metadata : midiMessages) {
+        // passthrough any MIDI
+        auto message = metadata.getMessage();
+        const auto time = metadata.samplePosition;
+        processedMidi.addEvent(message, time);
+        
+        int statusBase = message.getChannel();
+        
+        rosette::PPQ ts = basePPQ + (static_cast<double>(metadata.samplePosition) / static_cast<double>(sampleCount)) * beatLength;
+        if (message.isNoteOn()) {
+            m_midiMessageBuffer->push({ .ppq = ts, .status = 0x90 + statusBase, .byte1 = message.getNoteNumber(), .byte2 = message.getVelocity() });
+        } else if (message.isNoteOff()) {
+            m_midiMessageBuffer->push({ .ppq = ts, .status = 0x80 + statusBase, .byte1 = message.getNoteNumber(), .byte2 = message.getVelocity() });
+        }
+        
+        // debug, duplicate notes an octave higher
+        //        if (message.isNoteOnOrOff()) {
+        //            message.setNoteNumber(message.getNoteNumber() + 12);
+        //            processedMidi.addEvent(message, time);
+        //        }
+    }
+    
+    juce::MidiMessage msg{};
+    while (m_midiOutMessageBuffer->pop(msg)) {
+        processedMidi.addEvent(msg, 0);
     }
     
     midiMessages.swapWith(processedMidi);
@@ -435,7 +466,61 @@ void RosetteAudioProcessor::updateShadow() {
 }
 
 void RosetteAudioProcessor::updatePlaybackData() {
-    // render shadow to playback data
+    m_render = {};
+    auto &sheet = getShadowSheet();
+    auto chanCount = sheet.channelCount();
+    for (int i = 0; i < chanCount; ++i) {
+        m_render.chanCtrl.push_back({});
+        auto &chanCtrl = m_render.chanCtrl.back();
+        
+        auto noteCount = sheet.noteColumnCount(i);
+        for (int j = 0; j < noteCount; ++j) {
+            chanCtrl.noteCtrl.push_back({});
+        }
+    }
+    
+    std::map<rosette::AddrTime, rosette::SheetEvent> orderedEvents{};
+    
+    for (const auto &[addr, col] : sheet.columns) {
+        for (const auto &[t, ev] : col.events) {
+            orderedEvents.insert_or_assign({ .addr = addr, .t = t }, ev);
+        }
+    }
+    
+    rosette::rat cT{};
+    rosette::PlaybackEventList pbEvents{};
+    
+    for (const auto &[addrT, ev] : orderedEvents) {
+        const auto &[addr, t] = addrT;
+        rosette::PPQ ppq = t.toFloat();
+        auto &chanCtrl = m_render.chanCtrl.at(addr.channelIndex);
+        int midiChannel = addr.channelIndex % 16; // TODO(ruby): These will be reassignable.
+        if (addr.type == rosette::Scope::NOTE) {
+            auto &noteCtrl = chanCtrl.noteCtrl.at(addr.noteIndex);
+            if (ev.type == rosette::EventType::Note || ev.type == rosette::EventType::Off) {
+                if (noteCtrl.lastNote.hasValue()) {
+                    if (!pbEvents.push({.ppq = ppq, .midiEvent = juce::MidiMessage::noteOff(midiChannel, *noteCtrl.lastNote) })) {
+                        break;
+                    }
+                    noteCtrl.lastNote = {};
+                }
+            }
+            
+            if (ev.type == rosette::EventType::Note) {
+                if (!pbEvents.push({.ppq = ppq, .midiEvent = juce::MidiMessage::noteOn(midiChannel, ev.noteNumber, ev.shadowData.volAmt) })) {
+                    break;
+                };
+                noteCtrl.lastNote = ev.noteNumber;
+            }
+        }
+        
+        
+        cT = t;
+    }
+    
+    farbot::RealtimeObject<rosette::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable>::ScopedAccess<farbot::ThreadType::nonRealtime> eventList(m_playbackEventsRT);
+    *eventList = pbEvents;
+    m_pbState.eventsInvalidated.store(true);
 }
 
 rosette::Sheet &RosetteAudioProcessor::getSheet() {
@@ -457,16 +542,27 @@ void RosetteAudioProcessor::setupDefaultState() {
     
     
     // dummy sequence for now
-    trackerEvents.push_back({.t = 0.00, .note = 64});
-    trackerEvents.push_back({.t = 0.25, .note = 64});
-    trackerEvents.push_back({.t = 0.50, .isOff = true});
-    trackerEvents.push_back({.t = 0.75, .note = 64});
-    trackerEvents.push_back({.t = 1.00, .isOff = true});
-    trackerEvents.push_back({.t = 1.25, .note = 60});
-    trackerEvents.push_back({.t = 1.50, .note = 64});
-    trackerEvents.push_back({.t = 1.75, .isOff = true});
-    trackerEvents.push_back({.t = 2.00, .note = 67});
-    trackerEvents.push_back({.t = 2.25, .isOff = true});
-    trackerEvents.push_back({.t = 3.00, .note = 55});
-    trackerEvents.push_back({.t = 3.25, .isOff = true});
+    //    trackerEvents.push_back({.t = 0.00, .note = 64});
+    //    trackerEvents.push_back({.t = 0.25, .note = 64});
+    //    trackerEvents.push_back({.t = 0.50, .isOff = true});
+    //    trackerEvents.push_back({.t = 0.75, .note = 64});
+    //    trackerEvents.push_back({.t = 1.00, .isOff = true});
+    //    trackerEvents.push_back({.t = 1.25, .note = 60});
+    //    trackerEvents.push_back({.t = 1.50, .note = 64});
+    //    trackerEvents.push_back({.t = 1.75, .isOff = true});
+    //    trackerEvents.push_back({.t = 2.00, .note = 67});
+    //    trackerEvents.push_back({.t = 2.25, .isOff = true});
+    //    trackerEvents.push_back({.t = 3.00, .note = 55});
+    //    trackerEvents.push_back({.t = 3.25, .isOff = true});
 }
+
+
+std::shared_ptr<RosetteMidiMessageBuffer> RosetteAudioProcessor::getMidiMessageBuffer() {
+    return m_midiMessageBuffer;
+}
+
+std::shared_ptr<JuceMidiMessageBuffer> RosetteAudioProcessor::getMidiOutMessageBuffer() {
+    return m_midiOutMessageBuffer;
+}
+
+

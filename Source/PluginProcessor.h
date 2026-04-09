@@ -20,6 +20,8 @@
 #include "rosette/playback.h"
 #include "rosette/common.h"
 #include "rosette/savedata.h"
+#include "farbot/fifo.hpp"
+#include "farbot/RealtimeObject.hpp"
 
 //==============================================================================
 /**
@@ -45,6 +47,16 @@ struct RealTimeState {
     std::atomic<rosette::PPQ> cycleStart{};
     std::atomic<rosette::PPQ> cycleEnd{};
 };
+
+struct RosetteMidiMessage {
+    rosette::PPQ ppq{};
+    int status{};
+    int byte1{};
+    int byte2{};
+};
+
+using RosetteMidiMessageBuffer = farbot::fifo<RosetteMidiMessage, farbot::fifo_options::concurrency::single, farbot::fifo_options::concurrency::single>;
+using JuceMidiMessageBuffer = farbot::fifo<juce::MidiMessage, farbot::fifo_options::concurrency::single, farbot::fifo_options::concurrency::single>;
 
 class RosetteAudioProcessor  : public juce::AudioProcessor
 {
@@ -91,7 +103,9 @@ class RosetteAudioProcessor  : public juce::AudioProcessor
     const rosette::PluginData &getPluginData() const;
     rosette::PluginCache &getPluginCache();
     const rosette::PluginCache &getPluginCache() const;
-    
+    std::shared_ptr<RosetteMidiMessageBuffer> getMidiMessageBuffer();
+    std::shared_ptr<JuceMidiMessageBuffer> getMidiOutMessageBuffer();
+
     void makeUpdates();
     
     private:
@@ -102,12 +116,19 @@ class RosetteAudioProcessor  : public juce::AudioProcessor
     rosette::PluginCache m_cache{};
     rosette::PlaybackData m_pbData{};
     rosette::PlaybackState m_pbState{};
+    rosette::PlaybackMidiRenderState m_render{};
+    
+    std::shared_ptr<RosetteMidiMessageBuffer> m_midiMessageBuffer;
+    std::shared_ptr<JuceMidiMessageBuffer> m_midiOutMessageBuffer;
+    farbot::RealtimeObject<rosette::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable> m_playbackEventsRT;
+
+    
     RealTimeState m_rtState{};
     
-    std::vector<RoseEvent> trackerEvents{};
-    juce::Optional<int> m_lastNote{};
-    int m_playerPos{};
-    double lastPosition{};
+//    std::vector<RoseEvent> trackerEvents{};
+//    juce::Optional<int> m_lastNote{};
+//    int m_playerPos{};
+//    double lastPosition{};
     
     void updateShadow();
     void updatePlaybackData();
@@ -116,6 +137,8 @@ class RosetteAudioProcessor  : public juce::AudioProcessor
     const rosette::Sheet &getSheet() const;
     rosette::Sheet &getShadowSheet();
     const rosette::Sheet &getShadowSheet() const;
+        
+
     
     void setupDefaultState();
 };

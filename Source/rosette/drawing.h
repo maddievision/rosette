@@ -29,7 +29,7 @@ enum NoteDrawFlags {
     Active = 8
 };
 void drawOff(juce::Graphics& g, int drawFlags, int x, int y, int w, int h);
-void drawNote(juce::Graphics& g, int noteNumber, int inst, float volAmt, int drawFlags, int x, int y, int w, int h);
+void drawNote(juce::Graphics& g, int noteNumber, int inst, int displayStyle, float volAmt, int drawFlags, int x, int y, int w, int h);
 void drawEffect(juce::Graphics& g, const juce::String &label, float pctAmt, juce::Colour colour, int drawFlags, int x, int y, int w, int h);
 }
 }

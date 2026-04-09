@@ -37,7 +37,9 @@ void PluginData::readState(juce::MemoryBlock& data) {
     if (std::strncmp(header, "RSET", 4) != 0) {
         return;
     }
+    auto fileSizeOffset = stream.getPosition();
     auto fileSize = stream.readInt();
+    auto fileMax = fileSizeOffset + fileSize;
     
     stream.read(header, 4);
     if (std::strncmp(header, "VERS", 4) != 0) {
@@ -54,71 +56,102 @@ void PluginData::readState(juce::MemoryBlock& data) {
         return;
     }
     
-    stream.read(header, 4);
-    if (std::strncmp(header, "SHEE", 4) == 0) {
-        sheet.clear();
-
+    while (!stream.isExhausted() && stream.getPosition() < fileMax - 8) {
+        stream.read(header, 4);
         auto blockSize = stream.readInt();
-        auto columnCount = stream.readInt();
-        
-        for (int colIndex = 0; colIndex < columnCount; ++colIndex) {
-            Scope type = static_cast<Scope>(stream.readInt());
-            auto channelIndex = stream.readInt();
-            auto noteIndex = stream.readInt();
-            auto index = stream.readInt();
-            ColAddress addr{.type = type, .channelIndex = channelIndex, .noteIndex = noteIndex, .index = index};
-            auto &col = sheet.getOrInsert(addr);
+        if (std::strncmp(header, "WSIZ", 4) == 0) {
+            if (blockSize != 8) {
+                return;
+            }
+            auto width = stream.readInt();
+            auto height = stream.readInt();
+            editorState.windowSize = juce::Rectangle<int>(width, height);
+        } else if (std::strncmp(header, "DIVS", 4) == 0) {
+            if (blockSize != 8) {
+                return;
+            }
+            auto div = stream.readInt();
+            auto step = stream.readInt();
+            editorState.division = rat(1, div);
+            editorState.step = step;
+        } else if (std::strncmp(header, "INPT", 4) == 0) {
+            if (blockSize != 8) {
+                return;
+            }
+            editorState.octave = stream.readInt();
+            editorState.instrument = stream.readInt();
+        } else if (std::strncmp(header, "CURS", 4) == 0) {
+            if (blockSize != 12) {
+                return;
+            }
+            auto col = stream.readInt();
+            auto num = stream.readInt();
+            auto den = stream.readInt();
+            editorState.position = { .col = col, .row = rat(num, den) };
+        } else if (std::strncmp(header, "SHEE", 4) == 0) {
+            sheet.clear();
+            auto columnCount = stream.readInt();
             
-            auto eventCount = stream.readInt();
-            
-            for (int evIndex = 0; evIndex < eventCount; ++evIndex) {
-                auto num = stream.readInt();
-                auto den = stream.readInt();
-                rat t(num, den);
-                                
-                EventType type = static_cast<EventType>(stream.readInt());
-                juce::Optional<SheetEvent> ev{};
-                auto eventSize = stream.readInt();
-                switch (type) {
-                    case EventType::Off: {
-                        if (eventSize != 0) {
-                            return;
+            for (int colIndex = 0; colIndex < columnCount; ++colIndex) {
+                Scope type = static_cast<Scope>(stream.readInt());
+                auto channelIndex = stream.readInt();
+                auto noteIndex = stream.readInt();
+                auto index = stream.readInt();
+                ColAddress addr{.type = type, .channelIndex = channelIndex, .noteIndex = noteIndex, .index = index};
+                auto &col = sheet.getOrInsert(addr);
+                
+                auto eventCount = stream.readInt();
+                
+                for (int evIndex = 0; evIndex < eventCount; ++evIndex) {
+                    auto num = stream.readInt();
+                    auto den = stream.readInt();
+                    rat t(num, den);
+                    
+                    EventType type = static_cast<EventType>(stream.readInt());
+                    juce::Optional<SheetEvent> ev{};
+                    auto eventSize = stream.readInt();
+                    switch (type) {
+                        case EventType::Off: {
+                            if (eventSize != 0) {
+                                return;
+                            }
+                            ev = SheetEvent::off();
+                            break;
                         }
-                        ev = SheetEvent::off();
-                        break;
-                    }
-                    case EventType::Note: {
-                        if (eventSize != 8) {
-                            return;
+                        case EventType::Note: {
+                            if (eventSize != 8) {
+                                return;
+                            }
+                            auto noteNumber = stream.readShort();
+                            auto displayStyle = stream.readShort();
+                            auto instrument = stream.readInt();
+                            ev = SheetEvent::note(noteNumber, instrument, displayStyle);
+                            break;
                         }
-                        auto noteNumber = stream.readInt();
-                        auto instrument = stream.readInt();
-                        ev = SheetEvent::note(noteNumber, instrument);
-                        break;
-                    }
-                    case EventType::Effect: {
-                        if (eventSize != 16) {
-                            return;
+                        case EventType::Effect: {
+                            if (eventSize != 16) {
+                                return;
+                            }
+                            EffectType effType = static_cast<EffectType>(stream.readInt());
+                            auto effSize = stream.readInt();
+                            if (effSize != 8) {
+                                return;
+                            }
+                            auto param1 = stream.readInt();
+                            auto param2 = stream.readInt();
+                            
+                            ev = SheetEvent::effect(effType, param1, param2);
+                            break;
                         }
-                        EffectType effType = static_cast<EffectType>(stream.readInt());
-                        auto effSize = stream.readInt();
-                        if (effSize != 8) {
+                        default: {
                             return;
+                            //                        auto pos = stream.getPosition() + eventSize;
+                            //                        stream.setPosition(pos);
                         }
-                        auto param1 = stream.readInt();
-                        auto param2 = stream.readInt();
-                        
-                        ev = SheetEvent::effect(effType, param1, param2);
-                        break;
                     }
-                    default: {
-                        return;
-                        //                        auto pos = stream.getPosition() + eventSize;
-                        //                        stream.setPosition(pos);
+                    if (ev.hasValue()) {
+                        col.events.insert_or_assign(t, *ev);
                     }
-                }
-                if (ev.hasValue()) {
-                    col.events.insert_or_assign(t, *ev);
                 }
             }
         }
@@ -136,6 +169,27 @@ void PluginData::saveState(juce::MemoryBlock& data) {
     stream.writeInt(4); // block size
     stream.writeInt(THIS_ROSEVER);
     
+    stream.write("WSIZ", 4);
+    stream.writeInt(8); //block size;
+    stream.writeInt(editorState.windowSize.getWidth());
+    stream.writeInt(editorState.windowSize.getHeight());
+    
+    stream.write("DIVS", 4);
+    stream.writeInt(8);
+    stream.writeInt(editorState.division.den);
+    stream.writeInt(editorState.step);
+
+    stream.write("INPT", 4);
+    stream.writeInt(8);
+    stream.writeInt(editorState.octave);
+    stream.writeInt(editorState.instrument);
+
+    stream.write("CURS", 4);
+    stream.writeInt(12);
+    stream.writeInt(editorState.position.col);
+    stream.writeInt(editorState.position.row.num);
+    stream.writeInt(editorState.position.row.den);
+
     stream.write("SHEE", 4);
     auto offsetSheetSize = stream.getPosition();
     stream.writeInt(0);
@@ -152,15 +206,16 @@ void PluginData::saveState(juce::MemoryBlock& data) {
             stream.writeInt(t.den);
             stream.writeInt(static_cast<int>(ev.type));
             switch (ev.type) {
-                case rosette::EventType::Off:
+                case EventType::Off:
                     stream.writeInt(0); // event size
                     break;
-                case rosette::EventType::Note:
+                case EventType::Note:
                     stream.writeInt(8); // event size
-                    stream.writeInt(ev.noteNumber);
+                    stream.writeShort(ev.noteNumber);
+                    stream.writeShort(ev.noteDisplayStyle);
                     stream.writeInt(ev.instrument);
                     break;
-                case rosette::EventType::Effect:
+                case EventType::Effect:
                     stream.writeInt(16); // event size
                     stream.writeInt(static_cast<int>(ev.effectType));
                     stream.writeInt(8); // effect size
@@ -184,16 +239,18 @@ void PluginData::reset() {
     sheet = {};
     config = {};
     editorState = {};
-
-    editorState.division = rosette::rat(1, 4);
     
-    sheet.getOrInsert(rosette::ColAddress::note(0, 0));
-    sheet.getOrInsert(rosette::ColAddress::mod(0, 0, 0));
-    sheet.getOrInsert(rosette::ColAddress::note(0, 1));
-    sheet.getOrInsert(rosette::ColAddress::mod(0, 1, 0));
-    sheet.getOrInsert(rosette::ColAddress::note(0, 2));
-    sheet.getOrInsert(rosette::ColAddress::mod(0, 2, 0));
-    sheet.getOrInsert(rosette::ColAddress::channel(0, 0));
+    editorState.windowSize = juce::Rectangle<int>(400, 400);
+
+    editorState.division = rat(1, 4);
+    
+    sheet.getOrInsert(ColAddress::note(0, 0));
+    sheet.getOrInsert(ColAddress::mod(0, 0, 0));
+    sheet.getOrInsert(ColAddress::note(0, 1));
+    sheet.getOrInsert(ColAddress::mod(0, 1, 0));
+    sheet.getOrInsert(ColAddress::note(0, 2));
+    sheet.getOrInsert(ColAddress::mod(0, 2, 0));
+    sheet.getOrInsert(ColAddress::channel(0, 0));
     
     auto &km = config.noteKeyMap;
     km.insert_or_assign('z', 0);  // C 1
@@ -232,19 +289,19 @@ void PluginData::reset() {
     
     auto &ceMap = config.charToEffectTypeMap;
     
-    ceMap.insert_or_assign('v', rosette::EffectType::Volume);
+    ceMap.insert_or_assign('v', EffectType::Volume);
     
     auto &qfMap = config.quickEffectMap;
-    qfMap.insert_or_assign('0', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 0});
-    qfMap.insert_or_assign('1', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 11});
-    qfMap.insert_or_assign('2', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 22});
-    qfMap.insert_or_assign('3', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 33});
-    qfMap.insert_or_assign('4', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 44});
-    qfMap.insert_or_assign('5', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 55});
-    qfMap.insert_or_assign('6', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 66});
-    qfMap.insert_or_assign('7', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 77});
-    qfMap.insert_or_assign('8', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 88});
-    qfMap.insert_or_assign('9', rosette::PresetEffect{.type = rosette::EffectType::Volume, .param1 = 99});
+    qfMap.insert_or_assign('0', PresetEffect{.type = EffectType::Volume, .param1 = 0});
+    qfMap.insert_or_assign('1', PresetEffect{.type = EffectType::Volume, .param1 = 11});
+    qfMap.insert_or_assign('2', PresetEffect{.type = EffectType::Volume, .param1 = 22});
+    qfMap.insert_or_assign('3', PresetEffect{.type = EffectType::Volume, .param1 = 33});
+    qfMap.insert_or_assign('4', PresetEffect{.type = EffectType::Volume, .param1 = 44});
+    qfMap.insert_or_assign('5', PresetEffect{.type = EffectType::Volume, .param1 = 55});
+    qfMap.insert_or_assign('6', PresetEffect{.type = EffectType::Volume, .param1 = 66});
+    qfMap.insert_or_assign('7', PresetEffect{.type = EffectType::Volume, .param1 = 77});
+    qfMap.insert_or_assign('8', PresetEffect{.type = EffectType::Volume, .param1 = 88});
+    qfMap.insert_or_assign('9', PresetEffect{.type = EffectType::Volume, .param1 = 99});
 }
 
 }

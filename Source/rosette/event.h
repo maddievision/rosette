@@ -27,7 +27,8 @@ namespace rosette {
 enum class EventType {
     Off,
     Note,
-    Effect
+    Effect,
+    Text
 };
 
 enum class EffectType {
@@ -45,6 +46,7 @@ struct SheetEvent {
     
     // Note
     NoteNumber noteNumber{};
+    int noteDisplayStyle{};
     int instrument{};
     
     // Effect
@@ -75,8 +77,8 @@ struct SheetEvent {
         return SheetEvent{.type = EventType::Off};
     }
     
-    static SheetEvent note(NoteNumber number, int instrument) {
-        return SheetEvent{.type = EventType::Note, .noteNumber = number, .instrument = instrument};
+    static SheetEvent note(NoteNumber number, int instrument, int noteDisplayStyle = 0) {
+        return SheetEvent{.type = EventType::Note, .noteNumber = number, .noteDisplayStyle = noteDisplayStyle, .instrument = instrument};
     }
     
     static SheetEvent effect(EffectType type, int param1, int param2 = 0) {

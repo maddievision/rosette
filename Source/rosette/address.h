@@ -84,9 +84,9 @@ struct AddrTime {
     ColAddress addr;
     rat t;
     
-    bool operator==(const AddrTime& b) const { return t == b.t && addr == b.addr; }
-    bool operator<(const AddrTime& b) const { return t < b.t || (t == b.t && addr < b.addr); }
-    bool operator>(const AddrTime& b) const { return t > b.t || (t == b.t && addr > b.addr); }
+    bool operator==(const AddrTime& b) const { return t == b.t && addr.sortableIDMidiOrder() == b.addr.sortableIDMidiOrder(); }
+    bool operator<(const AddrTime& b) const { return t < b.t || (t == b.t && addr.sortableIDMidiOrder() < b.addr.sortableIDMidiOrder()); }
+    bool operator>(const AddrTime& b) const { return t > b.t || (t == b.t && addr.sortableIDMidiOrder() > b.addr.sortableIDMidiOrder()); }
 };
 
 std::string toBB26(int n);

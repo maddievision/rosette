@@ -52,6 +52,18 @@ struct Sheet {
             addresses.push_back(el.first);
         }
     }
+    
+    
+    std::size_t channelCount() const {
+        std::size_t maxChannel = 0;
+        for (const auto &[addr, col] : columns) {
+            if (addr.channelIndex > maxChannel) {
+                maxChannel = addr.channelIndex;
+            }
+        }
+        return maxChannel + 1;
+    }
+    
     std::vector<ColAddress>::size_type columnCount() const {
         return columns.size();
     }
