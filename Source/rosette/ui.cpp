@@ -16,7 +16,7 @@
 
 #include "ui.h"
 
-namespace rosette{
+namespace roset{
 namespace ui_colours{
 juce::Colour adjustColourVal(juce::Colour col, float pct, float alpha) {
     return juce::Colour::fromRGBA(

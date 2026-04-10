@@ -20,7 +20,7 @@
 #include <math.h>
 #include <string>
 
-namespace rosette {
+namespace roset {
 namespace note_display {
 
 static const char noteNames[12][4][6] = {

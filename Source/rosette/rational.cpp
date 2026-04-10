@@ -16,6 +16,6 @@
 
 #include "rational.h"
 
-namespace rosette {
+namespace roset {
 
 }

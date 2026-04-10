@@ -18,7 +18,7 @@
 
 #include <JuceHeader.h>
 
-namespace rosette {
+namespace roset {
 namespace drawing {
 
 enum NoteDrawFlags {

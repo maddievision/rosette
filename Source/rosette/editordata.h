@@ -21,10 +21,10 @@
 #include "template.h"
 #include "common.h"
 
-namespace rosette {
+namespace roset {
 
 struct EditorConfigCache {
-    std::map<rosette::EffectType, char> effectTypeToCharMap{};
+    std::map<roset::EffectType, char> effectTypeToCharMap{};
 };
 
 enum class EffectEntryStateType {

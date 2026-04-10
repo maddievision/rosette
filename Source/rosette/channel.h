@@ -17,7 +17,7 @@
 #pragma once
 #include <cstddef>
 
-namespace rosette {
+namespace roset {
 
 using ChannelIndex = int;
 

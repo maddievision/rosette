@@ -16,6 +16,6 @@
 
 #pragma once
 
-namespace rosette {
+namespace roset {
 enum class Scope { NOTE, MOD, CHANNEL };
 }

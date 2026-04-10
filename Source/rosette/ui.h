@@ -18,7 +18,7 @@
 
 #include <JuceHeader.h>
 
-namespace rosette {
+namespace roset {
 namespace ui_metrics {
 
 constexpr float noteLiftX = -1;

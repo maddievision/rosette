@@ -23,7 +23,7 @@
 #include <map>
 #include <cstddef>
 
-namespace rosette {
+namespace roset {
 using ColumnIndex = int;
 struct Column {
 public:

@@ -19,7 +19,7 @@
 #include "event.h"
 #include "sheet.h"
 
-namespace rosette {
+namespace roset {
 
 struct PresetEffect {
     EffectType type{};

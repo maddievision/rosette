@@ -39,17 +39,17 @@ struct RoseEvent {
 // TODO(ruby): Move this to farbot::RealtimeObject
 struct RealTimeState {
     std::atomic<bool> isPlaying{};
-    std::atomic<rosette::BPM> bpm{120};
-    std::atomic<rosette::PPQ> ppq{};
-    std::atomic<rosette::SampleRate> sampleRate{};
+    std::atomic<roset::BPM> bpm{120};
+    std::atomic<roset::PPQ> ppq{};
+    std::atomic<roset::SampleRate> sampleRate{};
     std::atomic<std::size_t> bufferSize{};
     std::atomic<bool> hasCycle{};
-    std::atomic<rosette::PPQ> cycleStart{};
-    std::atomic<rosette::PPQ> cycleEnd{};
+    std::atomic<roset::PPQ> cycleStart{};
+    std::atomic<roset::PPQ> cycleEnd{};
 };
 
 struct RosetteMidiMessage {
-    rosette::PPQ ppq{};
+    roset::PPQ ppq{};
     int status{};
     int byte1{};
     int byte2{};
@@ -99,10 +99,10 @@ class RosetteAudioProcessor  : public juce::AudioProcessor
     void setStateInformation (const void* data, int sizeInBytes) override;
     
     RealTimeState &getRealTimeState();
-    rosette::PluginData &getPluginData();
-    const rosette::PluginData &getPluginData() const;
-    rosette::PluginCache &getPluginCache();
-    const rosette::PluginCache &getPluginCache() const;
+    roset::PluginData &getPluginData();
+    const roset::PluginData &getPluginData() const;
+    roset::PluginCache &getPluginCache();
+    const roset::PluginCache &getPluginCache() const;
     std::shared_ptr<RosetteMidiMessageBuffer> getMidiMessageBuffer();
     std::shared_ptr<JuceMidiMessageBuffer> getMidiOutMessageBuffer();
 
@@ -112,15 +112,15 @@ class RosetteAudioProcessor  : public juce::AudioProcessor
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RosetteAudioProcessor)
     
-    rosette::PluginData m_data{};
-    rosette::PluginCache m_cache{};
-    rosette::PlaybackData m_pbData{};
-    rosette::PlaybackState m_pbState{};
-    rosette::PlaybackMidiRenderState m_render{};
+    roset::PluginData m_data{};
+    roset::PluginCache m_cache{};
+    roset::PlaybackData m_pbData{};
+    roset::PlaybackState m_pbState{};
+    roset::PlaybackMidiRenderState m_render{};
     
     std::shared_ptr<RosetteMidiMessageBuffer> m_midiMessageBuffer;
     std::shared_ptr<JuceMidiMessageBuffer> m_midiOutMessageBuffer;
-    farbot::RealtimeObject<rosette::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable> m_playbackEventsRT;
+    farbot::RealtimeObject<roset::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable> m_playbackEventsRT;
 
     
     RealTimeState m_rtState{};
@@ -133,10 +133,10 @@ class RosetteAudioProcessor  : public juce::AudioProcessor
     void updateShadow();
     void updatePlaybackData();
     
-    rosette::Sheet &getSheet();
-    const rosette::Sheet &getSheet() const;
-    rosette::Sheet &getShadowSheet();
-    const rosette::Sheet &getShadowSheet() const;
+    roset::Sheet &getSheet();
+    const roset::Sheet &getSheet() const;
+    roset::Sheet &getShadowSheet();
+    const roset::Sheet &getShadowSheet() const;
         
 
     

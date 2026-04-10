@@ -16,7 +16,7 @@
 
 #pragma once
 
-namespace rosette {
+namespace roset {
 
 template<typename C, typename R>
 struct point {

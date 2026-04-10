@@ -16,7 +16,7 @@
 
 #pragma once
 
-namespace rosette {
+namespace roset {
 using NoteNumber = int;
 using PPQ = double;
 using BPM = double;

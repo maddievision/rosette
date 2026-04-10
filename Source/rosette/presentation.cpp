@@ -16,7 +16,7 @@
 
 #include "presentation.h"
 
-namespace rosette {
+namespace roset {
 namespace note_display {
 
 // m = 12*log2(f/c5) + 60

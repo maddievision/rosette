@@ -23,7 +23,7 @@
 #include "template.h"
 #include <optional>
 
-namespace rosette {
+namespace roset {
 
 using SheetPoint = point<ColumnIndex, rat>;
 using SheetRect = rect<ColumnIndex, rat>;

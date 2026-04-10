@@ -20,7 +20,7 @@
 #include <numeric>
 #include <string>
 
-namespace rosette {
+namespace roset {
   typedef int percent;
   struct rat {
     int num;

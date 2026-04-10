@@ -22,7 +22,7 @@
 #include "common.h"
 #include "rational.h"
 
-namespace rosette {
+namespace roset {
 
 enum class EventType {
     Off,

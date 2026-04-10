@@ -142,7 +142,7 @@ bool RosetteAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) 
 
 void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    farbot::RealtimeObject<rosette::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable>::ScopedAccess<farbot::ThreadType::realtime> eventList(m_playbackEventsRT);
+    farbot::RealtimeObject<roset::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable>::ScopedAccess<farbot::ThreadType::realtime> eventList(m_playbackEventsRT);
     if (m_pbState.eventsInvalidated.load()) {
         m_pbState.needsResync = true;
         m_pbState.eventsInvalidated.store(false);
@@ -155,8 +155,8 @@ void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     buffer.clear();
     juce::MidiBuffer processedMidi;
     
-    rosette::PPQ beatLength{};
-    rosette::PPQ basePPQ{};
+    roset::PPQ beatLength{};
+    roset::PPQ basePPQ{};
     
     const auto playhead = getPlayHead();
     const auto pos = playhead->getPosition();
@@ -314,7 +314,7 @@ void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         
         int statusBase = message.getChannel();
         
-        rosette::PPQ ts = basePPQ + (static_cast<double>(metadata.samplePosition) / static_cast<double>(sampleCount)) * beatLength;
+        roset::PPQ ts = basePPQ + (static_cast<double>(metadata.samplePosition) / static_cast<double>(sampleCount)) * beatLength;
         if (message.isNoteOn()) {
             m_midiMessageBuffer->push({ .ppq = ts, .status = 0x90 + statusBase, .byte1 = message.getNoteNumber(), .byte2 = message.getVelocity() });
         } else if (message.isNoteOff()) {
@@ -376,19 +376,19 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
     return new RosetteAudioProcessor();
 }
 
-rosette::PluginData &RosetteAudioProcessor::getPluginData() {
+roset::PluginData &RosetteAudioProcessor::getPluginData() {
     return m_data;
 }
 
-const rosette::PluginData &RosetteAudioProcessor::getPluginData() const {
+const roset::PluginData &RosetteAudioProcessor::getPluginData() const {
     return m_data;
 }
 
-rosette::PluginCache &RosetteAudioProcessor::getPluginCache() {
+roset::PluginCache &RosetteAudioProcessor::getPluginCache() {
     return m_cache;
 }
 
-const rosette::PluginCache &RosetteAudioProcessor::getPluginCache() const {
+const roset::PluginCache &RosetteAudioProcessor::getPluginCache() const {
     return m_cache;
 }
 
@@ -405,7 +405,7 @@ void RosetteAudioProcessor::updateShadow() {
     
     // synchronise columns
     // remove extraneous cols
-    std::set<rosette::ColAddress> colAddresses{};
+    std::set<roset::ColAddress> colAddresses{};
     for (const auto &[addr, col]: shadow.columns) {
         if (!sheet.has(addr)) {
             colAddresses.insert(addr);
@@ -434,9 +434,9 @@ void RosetteAudioProcessor::updateShadow() {
         destCol.events.clear();
         for (const auto &[t, ev]: col.events) {
             auto modColCount = sheet.modColumnCount(addr.channelIndex, addr.noteIndex);
-            rosette::SheetEvent newEv = ev;
+            roset::SheetEvent newEv = ev;
             auto &sd = newEv.shadowData;
-            if (ev.type == rosette::EventType::Note) {
+            if (ev.type == roset::EventType::Note) {
                 // we try to determine length;
                 auto it = col.events.upper_bound(t);
                 if (it != col.events.end()) {
@@ -452,7 +452,7 @@ void RosetteAudioProcessor::updateShadow() {
                     auto modAddr = addr.getMod(addr.noteIndex, i);
                     if (!sheet.has(modAddr, t)) continue;
                     const auto &modEv = sheet.at(modAddr, t);
-                    if (modEv.isEffectOfType(rosette::EffectType::Volume)) {
+                    if (modEv.isEffectOfType(roset::EffectType::Volume)) {
                         volAmt = modEv.param1 / 99.0f;
                     }
                 }
@@ -479,7 +479,7 @@ void RosetteAudioProcessor::updatePlaybackData() {
         }
     }
     
-    std::map<rosette::AddrTime, rosette::SheetEvent> orderedEvents{};
+    std::map<roset::AddrTime, roset::SheetEvent> orderedEvents{};
     
     for (const auto &[addr, col] : sheet.columns) {
         for (const auto &[t, ev] : col.events) {
@@ -487,17 +487,17 @@ void RosetteAudioProcessor::updatePlaybackData() {
         }
     }
     
-    rosette::rat cT{};
-    rosette::PlaybackEventList pbEvents{};
+    roset::rat cT{};
+    roset::PlaybackEventList pbEvents{};
     
     for (const auto &[addrT, ev] : orderedEvents) {
         const auto &[addr, t] = addrT;
-        rosette::PPQ ppq = t.toFloat();
+        roset::PPQ ppq = t.toFloat();
         auto &chanCtrl = m_render.chanCtrl.at(addr.channelIndex);
         int midiChannel = addr.channelIndex % 16; // TODO(ruby): These will be reassignable.
-        if (addr.type == rosette::Scope::NOTE) {
+        if (addr.type == roset::Scope::NOTE) {
             auto &noteCtrl = chanCtrl.noteCtrl.at(addr.noteIndex);
-            if (ev.type == rosette::EventType::Note || ev.type == rosette::EventType::Off) {
+            if (ev.type == roset::EventType::Note || ev.type == roset::EventType::Off) {
                 if (noteCtrl.lastNote.hasValue()) {
                     if (!pbEvents.push({.ppq = ppq, .midiEvent = juce::MidiMessage::noteOff(midiChannel, *noteCtrl.lastNote) })) {
                         break;
@@ -506,7 +506,7 @@ void RosetteAudioProcessor::updatePlaybackData() {
                 }
             }
             
-            if (ev.type == rosette::EventType::Note) {
+            if (ev.type == roset::EventType::Note) {
                 if (!pbEvents.push({.ppq = ppq, .midiEvent = juce::MidiMessage::noteOn(midiChannel, ev.noteNumber, ev.shadowData.volAmt) })) {
                     break;
                 };
@@ -518,21 +518,21 @@ void RosetteAudioProcessor::updatePlaybackData() {
         cT = t;
     }
     
-    farbot::RealtimeObject<rosette::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable>::ScopedAccess<farbot::ThreadType::nonRealtime> eventList(m_playbackEventsRT);
+    farbot::RealtimeObject<roset::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable>::ScopedAccess<farbot::ThreadType::nonRealtime> eventList(m_playbackEventsRT);
     *eventList = pbEvents;
     m_pbState.eventsInvalidated.store(true);
 }
 
-rosette::Sheet &RosetteAudioProcessor::getSheet() {
+roset::Sheet &RosetteAudioProcessor::getSheet() {
     return m_data.sheet;
 }
-const rosette::Sheet &RosetteAudioProcessor::getSheet() const {
+const roset::Sheet &RosetteAudioProcessor::getSheet() const {
     return m_data.sheet;
 };
-rosette::Sheet &RosetteAudioProcessor::getShadowSheet() {
+roset::Sheet &RosetteAudioProcessor::getShadowSheet() {
     return m_cache.shadowSheet;
 }
-const rosette::Sheet &RosetteAudioProcessor::getShadowSheet() const {
+const roset::Sheet &RosetteAudioProcessor::getShadowSheet() const {
     return m_cache.shadowSheet;
 }
 

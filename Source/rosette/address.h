@@ -22,7 +22,7 @@
 #include "channel.h"
 #include <cstddef>
 
-namespace rosette {
+namespace roset {
 using NoteIndex = int;
 using Index = int;
 struct ColAddress {

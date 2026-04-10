@@ -16,7 +16,7 @@
 
 #include "address.h"
 
-namespace rosette {
+namespace roset {
 std::string toBB26(int n) {
   static std::vector<char> digits;
   digits.clear();

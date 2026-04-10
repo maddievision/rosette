@@ -16,7 +16,7 @@
 
 #include "savedata.h"
 
-namespace rosette {
+namespace roset {
 
 constexpr int MIN_ROSEVER = 0;
 constexpr int THIS_ROSEVER = 0;

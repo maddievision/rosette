@@ -16,6 +16,6 @@
 
 #include "sheet.h"
 
-namespace rosette {
+namespace roset {
 
 }

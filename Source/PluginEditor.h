@@ -58,12 +58,12 @@ private:
 
     juce::Font* m_font{};
 
-    rosette::EditorCache m_cache{};
+    roset::EditorCache m_cache{};
     
-    rosette::Sheet &getSheet();
-    const rosette::Sheet &getSheet() const;
-    rosette::Sheet &getShadowSheet();
-    const rosette::Sheet &getShadowSheet() const;
+    roset::Sheet &getSheet();
+    const roset::Sheet &getSheet() const;
+    roset::Sheet &getShadowSheet();
+    const roset::Sheet &getShadowSheet() const;
     
     void setupComponents();
 
@@ -83,54 +83,54 @@ private:
     void updateEditorCache();
     
     float getPPQHeight() const;
-    rosette::bounds<rosette::rat> getVisibleTimeArea() const;
+    roset::bounds<roset::rat> getVisibleTimeArea() const;
     juce::Point<int> getSheetBasePos(bool forGlobal = false, bool applyScroll = true) const;
     void updatePlaybackStateCache();
     double getCurrentTime() const;
     
-    rosette::rat getStepLength() const;
-    void navigateTo(const rosette::SheetPoint& position);
+    roset::rat getStepLength() const;
+    void navigateTo(const roset::SheetPoint& position);
     
     void checkUpdateScroll();
     
     juce::Rectangle<int> getCursorRect(bool applyScroll = true);
     int getPlaybackY(bool applyScroll = true);
     
-    void insertEvent(const rosette::SheetEvent& event, bool advance = true, bool monitorKey = false, juce::Optional<float> withVolume = {});
+    void insertEvent(const roset::SheetEvent& event, bool advance = true, bool monitorKey = false, juce::Optional<float> withVolume = {});
     void cycleNoteDisplayStyle();
     void clearEvent(bool advance = true);
     void deleteEvent();
-    rosette::NoteNumber getNoteNumberInCurrentOctave(int baseNote) const;
+    roset::NoteNumber getNoteNumberInCurrentOctave(int baseNote) const;
     void advanceToNextStep();
     
-    rosette::Column& getCurrentColumn(bool inShadow = false);
-    rosette::ColAddress getCurrentAddress() const;
+    roset::Column& getCurrentColumn(bool inShadow = false);
+    roset::ColAddress getCurrentAddress() const;
     
     
-    rosette::PluginEditorState &getState();
-    const rosette::PluginEditorState &getState() const;
-    rosette::PluginEditorConfig &getConfig();
-    const rosette::PluginEditorConfig &getConfig() const;
-    rosette::PluginData &getPluginData();
-    const rosette::PluginData &getPluginData() const;
-    rosette::PluginCache &getPluginCache();
-    const rosette::PluginCache &getPluginCache() const;
+    roset::PluginEditorState &getState();
+    const roset::PluginEditorState &getState() const;
+    roset::PluginEditorConfig &getConfig();
+    const roset::PluginEditorConfig &getConfig() const;
+    roset::PluginData &getPluginData();
+    const roset::PluginData &getPluginData() const;
+    roset::PluginCache &getPluginCache();
+    const roset::PluginCache &getPluginCache() const;
 
     
-    rosette::EditorCache &getCache();
-    const rosette::EditorCache &getCache() const;
+    roset::EditorCache &getCache();
+    const roset::EditorCache &getCache() const;
 
-    rosette::PlaybackStateCache &getPlaybackCache();
-    const rosette::PlaybackStateCache &getPlaybackCache() const;
+    roset::PlaybackStateCache &getPlaybackCache();
+    const roset::PlaybackStateCache &getPlaybackCache() const;
 
-    rosette::DrawingCache &getDrawingCache();
-    const rosette::DrawingCache &getDrawingCache() const;
+    roset::DrawingCache &getDrawingCache();
+    const roset::DrawingCache &getDrawingCache() const;
 
-    rosette::EditorConfigCache &getConfigCache();
-    const rosette::EditorConfigCache &getConfigCache() const;
+    roset::EditorConfigCache &getConfigCache();
+    const roset::EditorConfigCache &getConfigCache() const;
 
-    rosette::EditorTempState &getTemp();
-    const rosette::EditorTempState &getTemp() const;
+    roset::EditorTempState &getTemp();
+    const roset::EditorTempState &getTemp() const;
     
     RosetteAudioProcessor* getProcessor();
     const RosetteAudioProcessor* getProcessor() const;

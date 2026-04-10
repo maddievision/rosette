@@ -26,7 +26,7 @@
 #include "common.h"
 #include "template.h"
 
-namespace rosette {
+namespace roset {
 
 struct PluginCache {
     Sheet shadowSheet{};
