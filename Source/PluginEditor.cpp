@@ -300,17 +300,17 @@ void RosetteAudioProcessorEditor::drawMarkers(juce::Graphics& g) {
     int w = bounds.getWidth();
 
     auto ppqHeight = getPPQHeight();
-    const auto &pb = getPlaybackCache();
+    const auto &host = getHostPlaybackState();
 
     auto sheetGlobalPos = getSheetBasePos(true);
     
     int gX = sheetGlobalPos.getX();
     int gY = sheetGlobalPos.getY();
     
-    if (pb.hasCycle) {
+    if (host.hasCycle) {
         g.setColour(roset::ui_colours::gridlineMarkerColour);
-        int y1 = gY + pb.cycleStart * ppqHeight;
-        int y2 = gY + pb.cycleEnd * ppqHeight;
+        int y1 = gY + host.cycleStart * ppqHeight;
+        int y2 = gY + host.cycleEnd * ppqHeight;
         g.drawLine(0, y1, w, y1);
         g.drawLine(0, y2, w, y2);
         
@@ -339,10 +339,10 @@ void RosetteAudioProcessorEditor::drawRuler(juce::Graphics& g) {
     auto sheetPos = getSheetBasePos();
     int sY = sheetPos.getY();
     
-    auto &pb = getPlaybackCache();
+    auto &host = getHostPlaybackState();
     auto &state = getState();
     
-    roset::rat cT = pb.isPlaying ? roset::rat(pb.ppq * 960.0, 960).quantize(state.division.den) : state.position.row;
+    roset::rat cT = host.isPlaying ? roset::rat(host.ppq * 960.0, 960).quantize(state.division.den) : state.position.row;
     
     // horizontal lines
     auto ppqHeight = getPPQHeight();
@@ -384,12 +384,12 @@ void RosetteAudioProcessorEditor::drawStatus(juce::Graphics& g) {
 
     g.fillRect(x, y, lw - x, h);
     
-    const auto &pb = getPlaybackCache();
-    auto isPlaying = pb.isPlaying;
-    auto bpm = pb.bpm;
-    auto ppq = pb.ppq;
-    auto sr = pb.sampleRate;
-    auto bufferSize = pb.bufferSize;
+    const auto &host = getHostPlaybackState();
+    auto isPlaying = host.isPlaying;
+    auto bpm = host.bpm;
+    auto ppq = host.ppq;
+    auto sr = host.sampleRate;
+    auto bufferSize = host.bufferSize;
     
     g.setColour(roset::ui_colours::eventTextColour);
     if (isPlaying) {
@@ -428,7 +428,7 @@ void RosetteAudioProcessorEditor::drawSheet(juce::Graphics& g) {
     auto timeBounds = getVisibleTimeArea();
     
     const auto &dw = getDrawingCache();
-    const auto &pb = getPlaybackCache();
+    const auto &host = getHostPlaybackState();
     const auto &cfgc = getConfigCache();
     for (const auto &[addr, col] : sheet.columns) {
         const auto &bounds = dw.columnBounds[colIndex];
@@ -443,8 +443,8 @@ void RosetteAudioProcessorEditor::drawSheet(juce::Graphics& g) {
                 eLen = std::max(getState().division, ev.shadowData.length);
             }
             int flags{};
-            if (pb.isPlaying && ev.type == roset::EventType::Note) {
-                if (pb.ppq >= t.toFloat() && pb.ppq < (t + eLen).toFloat()) {
+            if (host.isPlaying && ev.type == roset::EventType::Note) {
+                if (host.ppq >= t.toFloat() && host.ppq < (t + eLen).toFloat()) {
                     flags |= roset::drawing::NoteDrawFlags::Active;
                 } else {
                     flags |= roset::drawing::NoteDrawFlags::Inactive;
@@ -481,8 +481,8 @@ void RosetteAudioProcessorEditor::drawSheet(juce::Graphics& g) {
 void RosetteAudioProcessorEditor::drawPlayhead(juce::Graphics& g, bool rulerWidth) {
     int w = rulerWidth ? roset::ui_metrics::rulerWidth : getLocalBounds().getWidth();
     int pY{};
-    const auto &pb = getPlaybackCache();
-    if (!pb.isPlaying) {
+    const auto &host = getHostPlaybackState();
+    if (!host.isPlaying) {
         pY = getCursorRect().getY();
         g.setColour(roset::ui_colours::currentRowColour);
     } else {
@@ -493,8 +493,8 @@ void RosetteAudioProcessorEditor::drawPlayhead(juce::Graphics& g, bool rulerWidt
 }
 
 void RosetteAudioProcessorEditor::drawCursor(juce::Graphics& g) {
-    const auto &pb = getPlaybackCache();
-    if (pb.isPlaying) return;
+    const auto &host = getHostPlaybackState();
+    if (host.isPlaying) return;
     auto rect = getCursorRect();
     g.setColour(roset::ui_colours::cursorOutlineColour);
     g.drawRect(rect);
@@ -518,14 +518,14 @@ void RosetteAudioProcessorEditor::drawRightMask(juce::Graphics &g) {
 
 void RosetteAudioProcessorEditor::timerCallback() {
     auto midiBuffer = getProcessor()->getMidiMessageBuffer();
-    RosetteMidiMessage msg;
+    roset::MidiMessage msg;
     while (midiBuffer->pop(msg)) {
-        handleMidiMessage(msg);
+        handleIncomingMidiMessage(msg);
     }
     repaint();
 }
 
-void RosetteAudioProcessorEditor::handleMidiMessage(const RosetteMidiMessage &msg) {
+void RosetteAudioProcessorEditor::handleIncomingMidiMessage(const roset::MidiMessage &msg) {
     auto status = msg.status >> 4;
     if (status == 0x9 && msg.byte2 > 0) {
         auto &state = getState();
@@ -639,20 +639,20 @@ roset::bounds<roset::rat> RosetteAudioProcessorEditor::getVisibleTimeArea() cons
 }
 
 void RosetteAudioProcessorEditor::updatePlaybackStateCache() {
-    const auto &rt = getProcessor()->getRealTimeState();
-    auto &pb = getPlaybackCache();
-    pb.isPlaying = rt.isPlaying.load();
-    pb.bpm = rt.bpm.load();
-    pb.ppq = rt.ppq.load();
-    pb.sampleRate = rt.sampleRate.load();
-    pb.bufferSize = rt.bufferSize.load();
-    pb.hasCycle = rt.hasCycle.load();
-    pb.cycleStart = rt.cycleStart.load();
-    pb.cycleEnd = rt.cycleEnd.load();
+    const auto &rt = getProcessor()->getHostPlaybackState();
+    auto &pb = getPlaybackStateCache();
+    pb.hostState.isPlaying = rt.isPlaying;
+    pb.hostState.bpm = rt.bpm;
+    pb.hostState.ppq = rt.ppq;
+    pb.hostState.sampleRate = rt.sampleRate;
+    pb.hostState.bufferSize = rt.bufferSize;
+    pb.hostState.hasCycle = rt.hasCycle;
+    pb.hostState.cycleStart = rt.cycleStart;
+    pb.hostState.cycleEnd = rt.cycleEnd;
     
-    if (pb.wasPlaying != pb.isPlaying) {
-        playbackStateChanged(pb.isPlaying);
-        pb.wasPlaying = pb.isPlaying;
+    if (pb.wasPlaying != pb.hostState.isPlaying) {
+        playbackStateChanged(pb.hostState.isPlaying);
+        pb.wasPlaying = pb.hostState.isPlaying;
     }
 }
 
@@ -669,10 +669,10 @@ juce::Point<int> RosetteAudioProcessorEditor::getSheetBasePos(bool forGlobal, bo
 }
 
 double RosetteAudioProcessorEditor::getCurrentTime() const {
-    const auto &pb = getPlaybackCache();
+    const auto &host = getHostPlaybackState();
     const auto &state = getState();
-    if (pb.isPlaying) {
-        return pb.ppq;
+    if (host.isPlaying) {
+        return host.ppq;
     } else {
         return state.position.row.toFloat();
     }
@@ -696,8 +696,8 @@ void RosetteAudioProcessorEditor::navigateTo(const roset::SheetPoint& position) 
 
 void RosetteAudioProcessorEditor::checkUpdateScroll() {
     auto &temp = getTemp();
-    auto &pb = getPlaybackCache();
-    if ((pb.isPlaying || temp.shouldUpdateScroll) && !temp.mouseGrab.active) {
+    auto &host = getHostPlaybackState();
+    if ((host.isPlaying || temp.shouldUpdateScroll) && !temp.mouseGrab.active) {
         temp.shouldUpdateScroll = false;
         
         auto bounds = getLocalBounds();
@@ -707,7 +707,7 @@ void RosetteAudioProcessorEditor::checkUpdateScroll() {
         int cY{};
         int cX{};
         
-        if (pb.isPlaying) {
+        if (host.isPlaying) {
             cY = getPlaybackY(false);
         } else {
             checkX = true;
@@ -729,8 +729,8 @@ void RosetteAudioProcessorEditor::checkUpdateScroll() {
             }
         }
         
-        int topScrollThresholdY = (pb.isPlaying ? (roset::ui_metrics::scrollThresholdNpY * static_cast<float>(h)) : roset::ui_metrics::scrollThresholdY);
-        int bottomScrollThresholdY = (pb.isPlaying ? (roset::ui_metrics::scrollThresholdNpY * static_cast<float>(h)) : roset::ui_metrics::scrollThresholdY);
+        int topScrollThresholdY = (host.isPlaying ? (roset::ui_metrics::scrollThresholdNpY * static_cast<float>(h)) : roset::ui_metrics::scrollThresholdY);
+        int bottomScrollThresholdY = (host.isPlaying ? (roset::ui_metrics::scrollThresholdNpY * static_cast<float>(h)) : roset::ui_metrics::scrollThresholdY);
         
         if (cY - scrY < topScrollThresholdY) {
             temp.scrollPos.setY(cY - topScrollThresholdY);
@@ -759,8 +759,8 @@ juce::Rectangle<int> RosetteAudioProcessorEditor::getCursorRect(bool applyScroll
 int RosetteAudioProcessorEditor::getPlaybackY(bool applyScroll) {
     auto s = getSheetBasePos(false, applyScroll);
     auto ppqHeight = getPPQHeight();
-    const auto &pb = getPlaybackCache();
-    return s.getY() + pb.ppq * ppqHeight;
+    const auto &host = getHostPlaybackState();
+    return s.getY() + host.ppq * ppqHeight;
 }
 
 void RosetteAudioProcessorEditor::insertEvent(const roset::SheetEvent &event, bool advance, bool monitor, juce::Optional<float> withVolume) {
@@ -790,12 +790,12 @@ void RosetteAudioProcessorEditor::insertEvent(const roset::SheetEvent &event, bo
         auto &temp = getTemp();
         if ((event.type == roset::EventType::Off || event.type == roset::EventType::Note) && temp.lastMonitoredNote.hasValue()) {
             auto note = *temp.lastMonitoredNote;
-            queueMidiMessage(juce::MidiMessage::noteOff(0, note));
+            queueOutgoingMidiMessage(juce::MidiMessage::noteOff(0, note));
             temp.lastMonitoredNote = {};
         }
         
         if (event.type == roset::EventType::Note) {
-            queueMidiMessage(juce::MidiMessage::noteOn(0, event.noteNumber, 1.0f));
+            queueOutgoingMidiMessage(juce::MidiMessage::noteOn(0, event.noteNumber, 1.0f));
             temp.lastMonitoredNote = event.noteNumber;
         }
     }
@@ -897,11 +897,18 @@ const roset::EditorCache &RosetteAudioProcessorEditor::getCache() const {
     return m_cache;
 }
 
-roset::PlaybackStateCache &RosetteAudioProcessorEditor::getPlaybackCache() {
+roset::PlaybackStateCache &RosetteAudioProcessorEditor::getPlaybackStateCache() {
     return getCache().playback;
 }
-const roset::PlaybackStateCache &RosetteAudioProcessorEditor::getPlaybackCache() const {
+const roset::PlaybackStateCache &RosetteAudioProcessorEditor::getPlaybackStateCache() const {
     return getCache().playback;
+}
+
+roset::HostPlaybackState &RosetteAudioProcessorEditor::getHostPlaybackState() {
+    return getPlaybackStateCache().hostState;
+}
+const roset::HostPlaybackState &RosetteAudioProcessorEditor::getHostPlaybackState() const {
+    return getPlaybackStateCache().hostState;
 }
 
 roset::DrawingCache &RosetteAudioProcessorEditor::getDrawingCache() {
@@ -937,7 +944,7 @@ void RosetteAudioProcessorEditor::setupDefaultState() {
     updateEditorCache();
 }
 
-void RosetteAudioProcessorEditor::queueMidiMessage(juce::MidiMessage msg) {
+void RosetteAudioProcessorEditor::queueOutgoingMidiMessage(juce::MidiMessage msg) {
     auto proc = getProcessor();
     auto buf = proc->getMidiOutMessageBuffer();
     buf->push(std::move(msg));
@@ -949,7 +956,7 @@ void RosetteAudioProcessorEditor::playbackStateChanged(bool newVal) {
     
     if (temp.lastMonitoredNote.hasValue()) {
         auto note = *temp.lastMonitoredNote;
-        queueMidiMessage(juce::MidiMessage::noteOff(0, note));
+        queueOutgoingMidiMessage(juce::MidiMessage::noteOff(0, note));
         temp.lastMonitoredNote = {};
     }
 }

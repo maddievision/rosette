@@ -27,35 +27,7 @@
 /**
 */
 
-
-// TODO(ruby): Temporary dummy sequence
-struct RoseEvent {
-    double t{};
-    int note{};
-    bool isOff{};
-};
-
-
-// TODO(ruby): Move this to farbot::RealtimeObject
-struct RealTimeState {
-    std::atomic<bool> isPlaying{};
-    std::atomic<roset::BPM> bpm{120};
-    std::atomic<roset::PPQ> ppq{};
-    std::atomic<roset::SampleRate> sampleRate{};
-    std::atomic<std::size_t> bufferSize{};
-    std::atomic<bool> hasCycle{};
-    std::atomic<roset::PPQ> cycleStart{};
-    std::atomic<roset::PPQ> cycleEnd{};
-};
-
-struct RosetteMidiMessage {
-    roset::PPQ ppq{};
-    int status{};
-    int byte1{};
-    int byte2{};
-};
-
-using RosetteMidiMessageBuffer = farbot::fifo<RosetteMidiMessage, farbot::fifo_options::concurrency::single, farbot::fifo_options::concurrency::single>;
+using RosetteMidiMessageBuffer = farbot::fifo<roset::MidiMessage, farbot::fifo_options::concurrency::single, farbot::fifo_options::concurrency::single>;
 using JuceMidiMessageBuffer = farbot::fifo<juce::MidiMessage, farbot::fifo_options::concurrency::single, farbot::fifo_options::concurrency::single>;
 
 class RosetteAudioProcessor  : public juce::AudioProcessor
@@ -98,7 +70,7 @@ class RosetteAudioProcessor  : public juce::AudioProcessor
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
     
-    RealTimeState &getRealTimeState();
+    const roset::HostPlaybackState getHostPlaybackState();
     roset::PluginData &getPluginData();
     const roset::PluginData &getPluginData() const;
     roset::PluginCache &getPluginCache();
@@ -121,10 +93,8 @@ class RosetteAudioProcessor  : public juce::AudioProcessor
     std::shared_ptr<RosetteMidiMessageBuffer> m_midiMessageBuffer;
     std::shared_ptr<JuceMidiMessageBuffer> m_midiOutMessageBuffer;
     farbot::RealtimeObject<roset::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable> m_playbackEventsRT;
+    farbot::RealtimeObject<roset::HostPlaybackState, farbot::RealtimeObjectOptions::realtimeMutatable> m_hostPlaybackStateRT;
 
-    
-    RealTimeState m_rtState{};
-    
 //    std::vector<RoseEvent> trackerEvents{};
 //    juce::Optional<int> m_lastNote{};
 //    int m_playerPos{};

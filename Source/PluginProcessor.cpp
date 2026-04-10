@@ -148,10 +148,12 @@ void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         m_pbState.eventsInvalidated.store(false);
     }
     
+    roset::HostPlaybackState newHostPlaybackState{};
+    
     auto sampleCount = buffer.getNumSamples();
     auto sampleRate = getSampleRate();
-    m_rtState.bufferSize.store(sampleCount);
-    m_rtState.sampleRate.store(sampleRate);
+    newHostPlaybackState.bufferSize = sampleCount;
+    newHostPlaybackState.sampleRate = sampleRate;
     buffer.clear();
     juce::MidiBuffer processedMidi;
     
@@ -165,19 +167,19 @@ void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         
         
         // realtime state
-        m_rtState.isPlaying.store(pos->getIsPlaying());
-        m_rtState.hasCycle.store(pos->getIsLooping());
+        newHostPlaybackState.isPlaying = pos->getIsPlaying();
+        newHostPlaybackState.hasCycle = pos->getIsLooping();
         if (pos->getBpm().hasValue()) {
-            m_rtState.bpm.store(*pos->getBpm());
+            newHostPlaybackState.bpm = *pos->getBpm();
         }
         if (pos->getPpqPosition().hasValue()) {
             basePPQ = *pos->getPpqPosition();
-            m_rtState.ppq.store(basePPQ);
+            newHostPlaybackState.ppq = basePPQ;
         }
         if (pos->getLoopPoints().hasValue()) {
             auto loopPoints = *pos->getLoopPoints();
-            m_rtState.cycleStart.store(loopPoints.ppqStart);
-            m_rtState.cycleEnd.store(loopPoints.ppqEnd);
+            newHostPlaybackState.cycleStart = loopPoints.ppqStart;
+            newHostPlaybackState.cycleEnd = loopPoints.ppqEnd;
         }
         
         
@@ -334,6 +336,8 @@ void RosetteAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     }
     
     midiMessages.swapWith(processedMidi);
+    farbot::RealtimeObject<roset::HostPlaybackState, farbot::RealtimeObjectOptions::realtimeMutatable>::ScopedAccess<farbot::ThreadType::realtime> hostPlaybackState(m_hostPlaybackStateRT);
+    *hostPlaybackState = newHostPlaybackState;
 }
 
 //==============================================================================
@@ -365,8 +369,9 @@ void RosetteAudioProcessor::setStateInformation (const void* data, int sizeInByt
     makeUpdates();
 }
 
-RealTimeState &RosetteAudioProcessor::getRealTimeState() {
-    return m_rtState;
+const roset::HostPlaybackState RosetteAudioProcessor::getHostPlaybackState() {
+    farbot::RealtimeObject<roset::HostPlaybackState, farbot::RealtimeObjectOptions::realtimeMutatable>::ScopedAccess<farbot::ThreadType::nonRealtime> hostPlaybackState(m_hostPlaybackStateRT);
+    return *hostPlaybackState;
 }
 
 //==============================================================================
@@ -520,7 +525,7 @@ void RosetteAudioProcessor::updatePlaybackData() {
     
     farbot::RealtimeObject<roset::PlaybackEventList, farbot::RealtimeObjectOptions::nonRealtimeMutatable>::ScopedAccess<farbot::ThreadType::nonRealtime> eventList(m_playbackEventsRT);
     *eventList = pbEvents;
-    m_pbState.eventsInvalidated.store(true);
+    m_pbState.eventsInvalidated = true;
 }
 
 roset::Sheet &RosetteAudioProcessor::getSheet() {
@@ -539,21 +544,6 @@ const roset::Sheet &RosetteAudioProcessor::getShadowSheet() const {
 void RosetteAudioProcessor::setupDefaultState() {
     m_data.reset();
     makeUpdates();
-    
-    
-    // dummy sequence for now
-    //    trackerEvents.push_back({.t = 0.00, .note = 64});
-    //    trackerEvents.push_back({.t = 0.25, .note = 64});
-    //    trackerEvents.push_back({.t = 0.50, .isOff = true});
-    //    trackerEvents.push_back({.t = 0.75, .note = 64});
-    //    trackerEvents.push_back({.t = 1.00, .isOff = true});
-    //    trackerEvents.push_back({.t = 1.25, .note = 60});
-    //    trackerEvents.push_back({.t = 1.50, .note = 64});
-    //    trackerEvents.push_back({.t = 1.75, .isOff = true});
-    //    trackerEvents.push_back({.t = 2.00, .note = 67});
-    //    trackerEvents.push_back({.t = 2.25, .isOff = true});
-    //    trackerEvents.push_back({.t = 3.00, .note = 55});
-    //    trackerEvents.push_back({.t = 3.25, .isOff = true});
 }
 
 

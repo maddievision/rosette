@@ -120,9 +120,12 @@ private:
     roset::EditorCache &getCache();
     const roset::EditorCache &getCache() const;
 
-    roset::PlaybackStateCache &getPlaybackCache();
-    const roset::PlaybackStateCache &getPlaybackCache() const;
+    roset::PlaybackStateCache &getPlaybackStateCache();
+    const roset::PlaybackStateCache &getPlaybackStateCache() const;
 
+    roset::HostPlaybackState &getHostPlaybackState();
+    const roset::HostPlaybackState &getHostPlaybackState() const;
+    
     roset::DrawingCache &getDrawingCache();
     const roset::DrawingCache &getDrawingCache() const;
 
@@ -135,9 +138,9 @@ private:
     RosetteAudioProcessor* getProcessor();
     const RosetteAudioProcessor* getProcessor() const;
     
-    void handleMidiMessage(const RosetteMidiMessage &msg);
+    void handleIncomingMidiMessage(const roset::MidiMessage &msg);
     
-    void queueMidiMessage(juce::MidiMessage msg);
+    void queueOutgoingMidiMessage(juce::MidiMessage msg);
     
     void playbackStateChanged(bool newVal);
 

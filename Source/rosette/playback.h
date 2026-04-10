@@ -28,6 +28,24 @@
 
 namespace roset {
 
+struct HostPlaybackState {
+    bool isPlaying{};
+    roset::BPM bpm{120};
+    roset::PPQ ppq{};
+    roset::SampleRate sampleRate{};
+    std::size_t bufferSize{};
+    bool hasCycle{};
+    roset::PPQ cycleStart{};
+    roset::PPQ cycleEnd{};
+};
+
+struct MidiMessage {
+    roset::PPQ ppq{};
+    int status{};
+    int byte1{};
+    int byte2{};
+};
+
 struct PluginCache {
     Sheet shadowSheet{};
 };

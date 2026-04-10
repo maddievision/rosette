@@ -20,6 +20,7 @@
 #include "event.h"
 #include "template.h"
 #include "common.h"
+#include "playback.h"
 
 namespace roset {
 
@@ -49,14 +50,7 @@ struct EditorTempState {
 
 struct PlaybackStateCache {
     bool wasPlaying{};
-    bool isPlaying{};
-    BPM bpm{120};
-    PPQ ppq{};
-    SampleRate sampleRate{};
-    std::size_t bufferSize{};
-    bool hasCycle{};
-    PPQ cycleStart{};
-    PPQ cycleEnd{};
+    HostPlaybackState hostState{};
 };
 
 struct DrawingCache {
